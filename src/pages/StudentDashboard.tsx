@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Camera, QrCode, Calendar, AlertTriangle, Clock, ArrowRight } from 'lucide-react';
@@ -8,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Navbar from '@/components/Navbar';
 import AttendanceStats from '@/components/AttendanceStats';
 import FaceRecognition from '@/components/FaceRecognition';
+import QRGenerator from '@/components/QRGenerator';
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -241,28 +241,9 @@ const StudentDashboard = () => {
                         <CardDescription>Scan the teacher's QR code to mark your attendance</CardDescription>
                       </CardHeader>
                       <CardContent className="flex flex-col items-center justify-center py-10">
-                        <div className="w-full max-w-xs flex flex-col items-center space-y-4">
-                          <div className="p-2 rounded-full bg-primary/10">
-                            <QrCode className="h-12 w-12 text-primary" />
-                          </div>
-                          <p className="text-center text-muted-foreground">Use your camera to scan the QR code displayed by your teacher</p>
-                          <Button className="w-full">
-                            <Camera className="mr-2 h-4 w-4" />
-                            Open QR Scanner
-                          </Button>
-                        </div>
+                        <QRGenerator onQRCodeGenerated={(data) => console.log('QR Code Data:', data)} />
                       </CardContent>
-                      <CardFooter className="flex justify-between">
-                        <p className="text-xs text-muted-foreground flex items-center">
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          QR codes are only valid for a limited time
-                        </p>
-                      </CardFooter>
                     </Card>
-                  </motion.div>
-                  
-                  <motion.div variants={fadeInUp}>
-                    <FaceRecognition />
                   </motion.div>
                 </div>
               </TabsContent>
