@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Menu, X, User, LogOut } from 'lucide-react';
@@ -55,9 +54,14 @@ const Navbar = ({ userRole }: NavbarProps) => {
               </Button>
             </div>
           ) : (
-            <Button onClick={() => navigate('/login')} variant="default">
-              Sign In
-            </Button>
+            <div className="flex space-x-4">
+              <Button onClick={() => navigate('/login')} variant="default">
+                Sign In
+              </Button>
+              <Button onClick={() => navigate('/signup')} variant="outline">
+                Sign Up
+              </Button>
+            </div>
           )}
         </div>
         
@@ -126,15 +130,26 @@ const Navbar = ({ userRole }: NavbarProps) => {
                 </Button>
               </div>
             ) : (
-              <Button 
-                onClick={() => {
-                  navigate('/login');
-                  setIsMenuOpen(false);
-                }} 
-                className="w-full"
-              >
-                Sign In
-              </Button>
+              <>
+                <Button 
+                  onClick={() => {
+                    navigate('/login');
+                    setIsMenuOpen(false);
+                  }} 
+                  className="w-full"
+                >
+                  Sign In
+                </Button>
+                <Button 
+                  onClick={() => {
+                    navigate('/signup');
+                    setIsMenuOpen(false);
+                  }} 
+                  className="w-full"
+                >
+                  Sign Up
+                </Button>
+              </>
             )}
           </div>
         </div>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -95,7 +94,7 @@ const Index = () => {
               </motion.p>
               
               <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row justify-center gap-4 pt-6">
-                <Button size="lg" onClick={() => navigate('/login')} className="h-12 px-6">
+                <Button size="lg" onClick={() => navigate('/signup')} className="h-12 px-6">
                   Get Started
                 </Button>
                 <Button size="lg" variant="outline" onClick={() => navigate('/login')} className="h-12 px-6">
