@@ -7,11 +7,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Navbar from '@/components/Navbar';
 import AttendanceStats from '@/components/AttendanceStats';
 import FaceRecognition from '@/components/FaceRecognition';
-import QRGenerator from '@/components/QRGenerator';
+import QrScanner from 'react-qr-scanner'; // Replace react-qr-reader with react-qr-scanner
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  
+  const [isScanning, setIsScanning] = useState(false); // State to toggle QR scanning
+  const [qrResult, setQrResult] = useState(null); // State to store scanned QR code result
+
+  const handleScan = (data: string | null) => {
+    if (data) {
+      setQrResult(data);
+      setIsScanning(false); // Stop scanning after successful scan
+    }
+  };
+
+  const handleError = (error: any) => {
+    console.error('QR Scan Error:', error);
+  };
+
   // Sample upcoming classes for demo
   const upcomingClasses = [
     {
@@ -241,7 +254,25 @@ const StudentDashboard = () => {
                         <CardDescription>Scan the teacher's QR code to mark your attendance</CardDescription>
                       </CardHeader>
                       <CardContent className="flex flex-col items-center justify-center py-10">
-                        <QRGenerator onQRCodeGenerated={(data) => console.log('QR Code Data:', data)} />
+                        <Button onClick={() => setIsScanning(!isScanning)}>
+                          {isScanning ? 'Stop Scanning' : 'Scan QR Code'}
+                        </Button>
+                        {isScanning && (
+                          <div className="qr-scanner">
+                            <QrScanner
+                              delay={300}
+                              onError={handleError}
+                              onScan={(result) => handleScan(result?.text || null)}
+                              style={{ width: '100%' }}
+                            />
+                          </div>
+                        )}
+                        {qrResult && (
+                          <div className="mt-4">
+                            <p className="text-green-600 font-bold">Scanned QR Code:</p>
+                            <p>{qrResult}</p>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </motion.div>
