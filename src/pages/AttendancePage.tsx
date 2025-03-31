@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import FaceRecognition from '@/components/FaceRecognition';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronUp, Info } from 'lucide-react';
 
 const AttendancePage = () => {
   const [searchParams] = useSearchParams();
@@ -14,17 +16,84 @@ const AttendancePage = () => {
   const [isRegistered, setIsRegistered] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [attendanceMarked, setAttendanceMarked] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
   
   const lectureId = searchParams.get('lecture') || '';
   const timestamp = searchParams.get('timestamp') || '';
+  const latitude = searchParams.get('lat') || null;
+  const longitude = searchParams.get('lng') || null;
+
+  // Class information mapping
+  const classInfo = {
+    'cs101': 'Introduction to Computer Science',
+    'cs102': 'Data Structures and Algorithms',
+    'cs103': 'Database Systems',
+  };
 
   useEffect(() => {
     // Check if user has registered face before
     // In a real app, this would check against user data in the backend
     const hasRegisteredFace = localStorage.getItem('faceRegistered') === 'true';
     setIsRegistered(hasRegisteredFace);
-  }, []);
+    
+    // Check if the QR code has location restrictions
+    if (latitude && longitude) {
+      checkLocation(Number(latitude), Number(longitude));
+    }
+  }, [latitude, longitude]);
+
+  const checkLocation = (targetLat: number, targetLng: number) => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const currentLat = position.coords.latitude;
+          const currentLng = position.coords.longitude;
+          
+          // Calculate rough distance (this is a simplified calculation)
+          const distance = calculateDistance(currentLat, currentLng, targetLat, targetLng);
+          
+          if (distance > 0.1) { // More than 100 meters away
+            toast({
+              title: "Location Verification Failed",
+              description: "You're not in the required location to mark attendance",
+              variant: "destructive"
+            });
+          } else {
+            toast({
+              title: "Location Verified",
+              description: "Your location has been verified",
+            });
+          }
+        },
+        (error) => {
+          toast({
+            title: "Location Error",
+            description: "Could not verify your location. Please enable location services.",
+            variant: "destructive"
+          });
+        }
+      );
+    }
+  };
+
+  // Simple distance calculation (Haversine formula)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = deg2rad(lat2-lat1);
+    const dLon = deg2rad(lon2-lon1); 
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    const d = R * c; // Distance in km
+    return d;
+  };
+
+  const deg2rad = (deg: number) => {
+    return deg * (Math.PI/180);
+  };
 
   const handleRegistrationComplete = (success: boolean) => {
     if (success) {
@@ -84,7 +153,13 @@ const AttendancePage = () => {
                 <CardHeader className="text-center">
                   <CardTitle>Attendance Verification</CardTitle>
                   <CardDescription>
-                    {lectureId ? `Class: ${classId}, Lecture ID: ${lectureId}` : 'Mark your attendance'}
+                    {classId && lectureId ? (
+                      <div className="space-y-1">
+                        <p>Class: {classInfo[classId] || classId}</p>
+                        <p>Lecture ID: {lectureId}</p>
+                        <p>Date: {new Date(parseInt(timestamp) || Date.now()).toLocaleDateString()}</p>
+                      </div>
+                    ) : 'Mark your attendance'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -99,9 +174,20 @@ const AttendancePage = () => {
                       <p className="text-muted-foreground">
                         Your attendance has been recorded for this lecture.
                       </p>
-                      <p className="text-sm">
-                        Time: {new Date().toLocaleTimeString()}
-                      </p>
+                      <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg space-y-2">
+                        <p>
+                          <span className="font-medium">Class:</span> {classInfo[classId as string] || classId}
+                        </p>
+                        <p>
+                          <span className="font-medium">Date:</span> {new Date().toLocaleDateString()}
+                        </p>
+                        <p>
+                          <span className="font-medium">Time:</span> {new Date().toLocaleTimeString()}
+                        </p>
+                        <p>
+                          <span className="font-medium">Verification Method:</span> QR Code + Face Recognition
+                        </p>
+                      </div>
                     </div>
                   ) : !isRegistered ? (
                     <div className="space-y-4">
@@ -111,6 +197,24 @@ const AttendancePage = () => {
                           To mark attendance, we need to register your face first.
                         </p>
                       </div>
+                      
+                      <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-4">
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" className="flex items-center justify-between w-full">
+                            <div className="flex items-center text-sm">
+                              <Info className="h-4 w-4 mr-2" />
+                              <span>Why do we need your face data?</span>
+                            </div>
+                            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="text-sm p-4 bg-muted/50 rounded-lg mt-2 text-muted-foreground">
+                          <p>Your face data is used to verify your identity when marking attendance. This ensures that 
+                          attendance can only be marked by you and prevents proxy attendance.</p>
+                          <p className="mt-2">Your data is securely stored and is only used for attendance verification purposes.</p>
+                        </CollapsibleContent>
+                      </Collapsible>
+                      
                       <FaceRecognition isRegistration onComplete={handleRegistrationComplete} />
                     </div>
                   ) : (

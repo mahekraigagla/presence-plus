@@ -48,7 +48,7 @@ const QRGenerator = () => {
     setLectureId(uniqueLectureId);
     
     // Build the attendance URL
-    const attendanceUrl = `${baseUrl}/attendance/${selectedClass}?lecture=${uniqueLectureId}&timestamp=${Date.now()}`;
+    let attendanceUrl = `${baseUrl}/attendance/${selectedClass}?lecture=${uniqueLectureId}&timestamp=${Date.now()}`;
     if (hasLocation) {
       attendanceUrl += `&lat=${location.latitude}&lng=${location.longitude}`;
     }

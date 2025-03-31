@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, QrCode, Calendar, Download, ArrowRight, UserCheck, UserX, Bell, FileText } from 'lucide-react';
@@ -111,10 +110,10 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = (format = 'csv') => {
     toast({
       title: "Report Downloaded",
-      description: "Attendance report has been downloaded as CSV",
+      description: `Attendance report has been downloaded as ${format.toUpperCase()}`,
     });
   };
 
@@ -127,6 +126,10 @@ const TeacherDashboard = () => {
 
   const navigateToQRGenerator = () => {
     navigate('/qr-generator');
+  };
+
+  const viewAttendance = (classId) => {
+    navigate(`/attendance/${classId}`);
   };
 
   return (
@@ -147,33 +150,44 @@ const TeacherDashboard = () => {
               }
             }}
           >
-            {/* Welcome Section */}
-            <motion.div variants={fadeInUp} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Welcome Section with improved layout */}
+            <motion.div 
+              variants={fadeInUp} 
+              className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm"
+            >
               <div>
                 <h1 className="text-2xl font-bold">Welcome, Prof. Anderson</h1>
                 <p className="text-muted-foreground">Faculty ID: FAC-5678 | Computer Science Department</p>
               </div>
-              <Button onClick={navigateToQRGenerator} className="md:w-auto w-full">
+              <Button 
+                onClick={navigateToQRGenerator} 
+                className="md:w-auto w-full bg-primary hover:bg-primary/90"
+              >
                 <QrCode className="mr-2 h-4 w-4" />
                 Generate QR Code
               </Button>
             </motion.div>
             
             {/* Main Dashboard Content */}
-            <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs 
+              defaultValue="overview" 
+              value={activeTab} 
+              onValueChange={setActiveTab} 
+              className="w-full"
+            >
               <motion.div variants={fadeInUp}>
-                <TabsList className="grid w-full grid-cols-4 mb-6">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="classes">Classes</TabsTrigger>
-                  <TabsTrigger value="attendance">Attendance</TabsTrigger>
-                  <TabsTrigger value="reports">Reports</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-4 mb-6 bg-muted/50">
+                  <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-white">Overview</TabsTrigger>
+                  <TabsTrigger value="classes" className="data-[state=active]:bg-primary data-[state=active]:text-white">Classes</TabsTrigger>
+                  <TabsTrigger value="attendance" className="data-[state=active]:bg-primary data-[state=active]:text-white">Attendance</TabsTrigger>
+                  <TabsTrigger value="reports" className="data-[state=active]:bg-primary data-[state=active]:text-white">Reports</TabsTrigger>
                 </TabsList>
               </motion.div>
               
               {/* Overview Tab */}
               <TabsContent value="overview" className="space-y-6">
                 <motion.div variants={fadeInUp} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card className="glass dark:glass-dark">
+                  <Card className="glass dark:glass-dark hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm font-medium text-muted-foreground">Total Students</CardTitle>
                     </CardHeader>
@@ -183,7 +197,7 @@ const TeacherDashboard = () => {
                     </CardContent>
                   </Card>
                   
-                  <Card className="glass dark:glass-dark">
+                  <Card className="glass dark:glass-dark hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm font-medium text-muted-foreground">Today's Attendance</CardTitle>
                     </CardHeader>
@@ -193,7 +207,7 @@ const TeacherDashboard = () => {
                     </CardContent>
                   </Card>
                   
-                  <Card className="glass dark:glass-dark">
+                  <Card className="glass dark:glass-dark hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm font-medium text-muted-foreground">Classes Today</CardTitle>
                     </CardHeader>
@@ -203,7 +217,7 @@ const TeacherDashboard = () => {
                     </CardContent>
                   </Card>
                   
-                  <Card className="glass dark:glass-dark">
+                  <Card className="glass dark:glass-dark hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm font-medium text-muted-foreground">This Week</CardTitle>
                     </CardHeader>
@@ -334,7 +348,7 @@ const TeacherDashboard = () => {
                     <CardContent>
                       <div className="space-y-6">
                         {classes.map((classItem) => (
-                          <div key={classItem.id} className="p-4 rounded-lg border">
+                          <div key={classItem.id} className="p-4 rounded-lg border hover:shadow-md transition-shadow">
                             <div className="flex flex-col md:flex-row justify-between gap-4">
                               <div>
                                 <h3 className="text-lg font-medium">{classItem.name}</h3>
@@ -358,7 +372,11 @@ const TeacherDashboard = () => {
                                   <QrCode className="h-4 w-4 mr-2" />
                                   QR Code
                                 </Button>
-                                <Button variant="outline" size="sm" onClick={() => setActiveTab('attendance')}>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => viewAttendance(classItem.id)}
+                                >
                                   <FileText className="h-4 w-4 mr-2" />
                                   Attendance
                                 </Button>
@@ -372,10 +390,16 @@ const TeacherDashboard = () => {
                                   </p>
                                   <p className="text-xs text-muted-foreground">{classItem.attendance} of {classItem.students} students present</p>
                                 </div>
-                                <Button variant="outline" size="sm" onClick={handleDownloadReport}>
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Attendance Sheet
-                                </Button>
+                                <div className="flex gap-2">
+                                  <Button variant="outline" size="sm" onClick={() => handleDownloadReport('csv')}>
+                                    <Download className="h-4 w-4 mr-2" />
+                                    CSV
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => handleDownloadReport('excel')}>
+                                    <Download className="h-4 w-4" />
+                                    Excel
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -412,35 +436,50 @@ const TeacherDashboard = () => {
                     <CardContent>
                       <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="glass dark:glass-dark rounded-lg p-4 flex flex-col items-center text-center">
+                          <div className="glass dark:glass-dark rounded-lg p-4 flex flex-col items-center text-center hover:shadow-md transition-shadow">
                             <div className="p-2 rounded-full bg-primary/10 mb-3">
                               <Download className="h-6 w-6 text-primary" />
                             </div>
                             <h3 className="font-medium">Daily Report</h3>
                             <p className="text-sm text-muted-foreground mt-1 mb-4">Today's attendance summary</p>
-                            <Button variant="outline" size="sm" className="mt-auto w-full" onClick={handleDownloadReport}>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="mt-auto w-full" 
+                              onClick={() => handleDownloadReport('csv')}
+                            >
                               Download
                             </Button>
                           </div>
                           
-                          <div className="glass dark:glass-dark rounded-lg p-4 flex flex-col items-center text-center">
+                          <div className="glass dark:glass-dark rounded-lg p-4 flex flex-col items-center text-center hover:shadow-md transition-shadow">
                             <div className="p-2 rounded-full bg-primary/10 mb-3">
                               <Download className="h-6 w-6 text-primary" />
                             </div>
                             <h3 className="font-medium">Weekly Report</h3>
                             <p className="text-sm text-muted-foreground mt-1 mb-4">This week's attendance summary</p>
-                            <Button variant="outline" size="sm" className="mt-auto w-full" onClick={handleDownloadReport}>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="mt-auto w-full" 
+                              onClick={() => handleDownloadReport('csv')}
+                            >
                               Download
                             </Button>
                           </div>
                           
-                          <div className="glass dark:glass-dark rounded-lg p-4 flex flex-col items-center text-center">
+                          <div className="glass dark:glass-dark rounded-lg p-4 flex flex-col items-center text-center hover:shadow-md transition-shadow">
                             <div className="p-2 rounded-full bg-primary/10 mb-3">
                               <Download className="h-6 w-6 text-primary" />
                             </div>
                             <h3 className="font-medium">Monthly Report</h3>
                             <p className="text-sm text-muted-foreground mt-1 mb-4">This month's attendance summary</p>
-                            <Button variant="outline" size="sm" className="mt-auto w-full" onClick={handleDownloadReport}>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="mt-auto w-full" 
+                              onClick={() => handleDownloadReport('csv')}
+                            >
                               Download
                             </Button>
                           </div>
