@@ -1,8 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Check, Copy, RefreshCw, MapPin } from 'lucide-react';
+import { Check, Copy, RefreshCw, MapPin, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 const QRGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -11,24 +13,50 @@ const QRGenerator = () => {
   const [expiryTime, setExpiryTime] = useState(5); // Minutes
   const [location, setLocation] = useState({ latitude: 0, longitude: 0 });
   const [hasLocation, setHasLocation] = useState(false);
+  const [selectedClass, setSelectedClass] = useState('');
+  const [lectureId, setLectureId] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
   const { toast } = useToast();
 
+  // Available classes for the teacher
+  const classes = [
+    { id: 'cs101', name: 'Introduction to Computer Science' },
+    { id: 'cs102', name: 'Data Structures and Algorithms' },
+    { id: 'cs103', name: 'Database Systems' },
+  ];
+
+  useEffect(() => {
+    // Get the base URL of the application
+    const url = new URL(window.location.href);
+    setBaseUrl(`${url.protocol}//${url.host}`);
+  }, []);
+
   const generateQRCode = () => {
+    if (!selectedClass) {
+      toast({
+        title: "Class Required",
+        description: "Please select a class to generate a QR code",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsGenerating(true);
+    
+    // Generate a unique lecture ID if not set
+    const uniqueLectureId = lectureId || `${selectedClass}-${Date.now()}`;
+    setLectureId(uniqueLectureId);
+    
+    // Build the attendance URL
+    const attendanceUrl = `${baseUrl}/attendance/${selectedClass}?lecture=${uniqueLectureId}&timestamp=${Date.now()}`;
+    if (hasLocation) {
+      attendanceUrl += `&lat=${location.latitude}&lng=${location.longitude}`;
+    }
     
     // Mock QR code generation
     setTimeout(() => {
-      // In a real app, this would be generated from the backend
       // For demo, we're using a placeholder QR code URL
-      const mockQRData = {
-        id: Math.random().toString(36).substring(2, 10),
-        timestamp: new Date().toISOString(),
-        expiryMinutes: expiryTime,
-        location: hasLocation ? location : null
-      };
-      
-      // Simulate a QR code with placeholder API
-      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(mockQRData))}`);
+      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(attendanceUrl)}`);
       setIsGenerating(false);
       
       toast({
@@ -39,14 +67,16 @@ const QRGenerator = () => {
   };
 
   const copyQRCode = () => {
-    // In a real app, you might use the clipboard API to copy the image
-    // For demo purposes, we're just showing the copy animation
-    setCopied(true);
-    toast({
-      title: "QR Code Copied",
-      description: "Share it with your students for attendance",
+    // In a real app, you might use the clipboard API to copy the image or URL
+    const attendanceUrl = `${baseUrl}/attendance/${selectedClass}?lecture=${lectureId}&timestamp=${Date.now()}`;
+    navigator.clipboard.writeText(attendanceUrl).then(() => {
+      setCopied(true);
+      toast({
+        title: "URL Copied",
+        description: "Attendance URL copied to clipboard",
+      });
+      setTimeout(() => setCopied(false), 2000);
     });
-    setTimeout(() => setCopied(false), 2000);
   };
 
   const getLocation = () => {
@@ -80,6 +110,14 @@ const QRGenerator = () => {
     }
   };
 
+  const clearLocation = () => {
+    setHasLocation(false);
+    toast({
+      title: "Location Removed",
+      description: "Location data will not be used for this QR code",
+    });
+  };
+
   return (
     <div className="glass dark:glass-dark rounded-lg p-6 space-y-6 max-w-md w-full mx-auto">
       <div className="text-center space-y-2">
@@ -91,34 +129,72 @@ const QRGenerator = () => {
       
       <div className="space-y-4">
         <div className="flex flex-col space-y-2">
+          <label className="text-sm font-medium">Select Class</label>
+          <Select value={selectedClass} onValueChange={setSelectedClass}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a class" />
+            </SelectTrigger>
+            <SelectContent>
+              {classes.map(cls => (
+                <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="flex flex-col space-y-2">
+          <label className="text-sm font-medium">Lecture ID (optional)</label>
+          <Input 
+            placeholder="Leave blank for auto-generated ID"
+            value={lectureId}
+            onChange={(e) => setLectureId(e.target.value)}
+          />
+        </div>
+        
+        <div className="flex flex-col space-y-2">
           <label className="text-sm font-medium">Validity Period (minutes)</label>
-          <select 
-            value={expiryTime}
-            onChange={(e) => setExpiryTime(Number(e.target.value))}
-            className="rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-          >
-            <option value={5}>5 minutes</option>
-            <option value={10}>10 minutes</option>
-            <option value={15}>15 minutes</option>
-            <option value={30}>30 minutes</option>
-            <option value={60}>1 hour</option>
-          </select>
+          <Select value={expiryTime.toString()} onValueChange={(val) => setExpiryTime(Number(val))}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select validity period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="5">5 minutes</SelectItem>
+              <SelectItem value="10">10 minutes</SelectItem>
+              <SelectItem value="15">15 minutes</SelectItem>
+              <SelectItem value="30">30 minutes</SelectItem>
+              <SelectItem value="60">1 hour</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         
         <div className="flex items-center">
-          <Button 
-            variant="outline" 
-            size="sm"
-            className={`flex space-x-2 ${hasLocation ? 'bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800' : ''}`}
-            onClick={getLocation}
-          >
-            <MapPin size={16} />
-            <span>{hasLocation ? 'Location Added' : 'Add Location'}</span>
-          </Button>
-          {hasLocation && (
-            <span className="ml-2 text-xs text-muted-foreground">
-              Lat: {location.latitude.toFixed(6)}, Lng: {location.longitude.toFixed(6)}
-            </span>
+          {!hasLocation ? (
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="flex space-x-2"
+              onClick={getLocation}
+            >
+              <MapPin size={16} />
+              <span>Add Location</span>
+            </Button>
+          ) : (
+            <div className="flex w-full items-center space-x-2">
+              <div className="px-3 py-1 bg-green-50 text-green-600 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 rounded-md text-sm flex items-center">
+                <MapPin size={14} className="mr-1" />
+                <span className="truncate">
+                  Location added
+                </span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 w-8 p-0" 
+                onClick={clearLocation}
+              >
+                <X size={16} className="text-muted-foreground" />
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -146,6 +222,12 @@ const QRGenerator = () => {
             <div className="text-sm text-center space-y-2">
               <p className="font-medium">Valid for {expiryTime} minutes</p>
               <p className="text-xs text-muted-foreground">Generated at {new Date().toLocaleTimeString()}</p>
+              {selectedClass && (
+                <p className="text-xs font-medium">Class: {classes.find(c => c.id === selectedClass)?.name}</p>
+              )}
+              {lectureId && (
+                <p className="text-xs text-muted-foreground">Lecture ID: {lectureId}</p>
+              )}
             </div>
           </div>
         ) : (
@@ -158,7 +240,7 @@ const QRGenerator = () => {
       <Button 
         className="w-full"
         onClick={generateQRCode}
-        disabled={isGenerating}
+        disabled={isGenerating || !selectedClass}
       >
         {isGenerating ? (
           <>

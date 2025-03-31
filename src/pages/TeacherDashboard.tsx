@@ -1,23 +1,26 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, QrCode, Calendar, Download, ArrowRight, UserCheck, UserX, Bell } from 'lucide-react';
+import { Users, QrCode, Calendar, Download, ArrowRight, UserCheck, UserX, Bell, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import AttendanceStats from '@/components/AttendanceStats';
 import QRGenerator from '@/components/QRGenerator';
+import AttendanceTable from '@/components/AttendanceTable';
 
 const TeacherDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Sample classes for demo
   const classes = [
     {
-      id: 1,
+      id: 'cs101',
       name: 'Introduction to Computer Science',
       time: '09:00 AM - 10:30 AM',
       room: 'Room 101',
@@ -25,7 +28,7 @@ const TeacherDashboard = () => {
       attendance: 31
     },
     {
-      id: 2,
+      id: 'cs102',
       name: 'Data Structures and Algorithms',
       time: '11:00 AM - 12:30 PM',
       room: 'Room 203',
@@ -33,7 +36,7 @@ const TeacherDashboard = () => {
       attendance: 25
     },
     {
-      id: 3,
+      id: 'cs103',
       name: 'Database Systems',
       time: '02:00 PM - 03:30 PM',
       room: 'Lab 3',
@@ -122,6 +125,10 @@ const TeacherDashboard = () => {
     });
   };
 
+  const navigateToQRGenerator = () => {
+    navigate('/qr-generator');
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
       <Navbar userRole="teacher" />
@@ -146,7 +153,7 @@ const TeacherDashboard = () => {
                 <h1 className="text-2xl font-bold">Welcome, Prof. Anderson</h1>
                 <p className="text-muted-foreground">Faculty ID: FAC-5678 | Computer Science Department</p>
               </div>
-              <Button onClick={() => setActiveTab('qr')} className="md:w-auto w-full">
+              <Button onClick={navigateToQRGenerator} className="md:w-auto w-full">
                 <QrCode className="mr-2 h-4 w-4" />
                 Generate QR Code
               </Button>
@@ -155,10 +162,10 @@ const TeacherDashboard = () => {
             {/* Main Dashboard Content */}
             <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
               <motion.div variants={fadeInUp}>
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
+                <TabsList className="grid w-full grid-cols-4 mb-6">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="qr">QR Generator</TabsTrigger>
                   <TabsTrigger value="classes">Classes</TabsTrigger>
+                  <TabsTrigger value="attendance">Attendance</TabsTrigger>
                   <TabsTrigger value="reports">Reports</TabsTrigger>
                 </TabsList>
               </motion.div>
@@ -316,58 +323,6 @@ const TeacherDashboard = () => {
                 </div>
               </TabsContent>
               
-              {/* QR Generator Tab */}
-              <TabsContent value="qr">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <motion.div variants={fadeInUp}>
-                    <QRGenerator />
-                  </motion.div>
-                  
-                  <motion.div variants={fadeInUp}>
-                    <Card className="glass dark:glass-dark h-full">
-                      <CardHeader>
-                        <CardTitle>Live Attendance Feed</CardTitle>
-                        <CardDescription>Students who recently marked attendance</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {recentActivities.map((activity) => (
-                            <div key={activity.id} className="flex items-center justify-between pb-3 border-b last:border-0 last:pb-0">
-                              <div>
-                                <h4 className="font-medium">{activity.student}</h4>
-                                <p className="text-xs text-muted-foreground">{activity.class} • {activity.time}</p>
-                                <p className="text-xs text-muted-foreground">Method: {activity.verificationMethod}</p>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  activity.status === 'Verified' 
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                                    : activity.status === 'Partial'
-                                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                      : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                                }`}>
-                                  {activity.status}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                      <CardFooter className="flex gap-2">
-                        <Button className="w-1/2" variant="outline" size="sm">
-                          <UserCheck className="h-4 w-4 mr-2" />
-                          Mark Present
-                        </Button>
-                        <Button className="w-1/2" variant="outline" size="sm">
-                          <UserX className="h-4 w-4 mr-2" />
-                          Mark Absent
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  </motion.div>
-                </div>
-              </TabsContent>
-              
               {/* Classes Tab */}
               <TabsContent value="classes">
                 <motion.div variants={fadeInUp} className="space-y-6">
@@ -399,13 +354,13 @@ const TeacherDashboard = () => {
                                 </div>
                               </div>
                               <div className="flex flex-col xs:flex-row gap-2">
-                                <Button variant="outline" size="sm" onClick={() => setActiveTab('qr')}>
+                                <Button variant="outline" size="sm" onClick={navigateToQRGenerator}>
                                   <QrCode className="h-4 w-4 mr-2" />
                                   QR Code
                                 </Button>
-                                <Button variant="outline" size="sm">
-                                  <Users className="h-4 w-4 mr-2" />
-                                  Students
+                                <Button variant="outline" size="sm" onClick={() => setActiveTab('attendance')}>
+                                  <FileText className="h-4 w-4 mr-2" />
+                                  Attendance
                                 </Button>
                               </div>
                             </div>
@@ -417,7 +372,7 @@ const TeacherDashboard = () => {
                                   </p>
                                   <p className="text-xs text-muted-foreground">{classItem.attendance} of {classItem.students} students present</p>
                                 </div>
-                                <Button variant="outline" size="sm">
+                                <Button variant="outline" size="sm" onClick={handleDownloadReport}>
                                   <Download className="h-4 w-4 mr-2" />
                                   Attendance Sheet
                                 </Button>
@@ -426,6 +381,21 @@ const TeacherDashboard = () => {
                           </div>
                         ))}
                       </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+              
+              {/* Attendance Tab */}
+              <TabsContent value="attendance">
+                <motion.div variants={fadeInUp} className="space-y-6">
+                  <Card className="glass dark:glass-dark">
+                    <CardHeader>
+                      <CardTitle>Attendance Management</CardTitle>
+                      <CardDescription>View and manage attendance for all classes</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <AttendanceTable classId="cs101" date={new Date().toLocaleDateString()} />
                     </CardContent>
                   </Card>
                 </motion.div>

@@ -4,7 +4,15 @@ import { Camera, User, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
-const FaceRecognition = () => {
+interface FaceRecognitionProps {
+  isRegistration?: boolean;
+  onComplete?: (success: boolean) => void;
+}
+
+const FaceRecognition: React.FC<FaceRecognitionProps> = ({ 
+  isRegistration = false,
+  onComplete
+}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -71,10 +79,38 @@ const FaceRecognition = () => {
         setCapturedImage(image);
         stopCamera();
         
-        // Simulate verification process
-        verifyFace(image);
+        if (isRegistration) {
+          registerFace(image);
+        } else {
+          verifyFace(image);
+        }
       }
     }
+  };
+
+  const registerFace = (image: string) => {
+    setVerificationStatus('verifying');
+    
+    // In a real app, you would send the image to a backend API for registration
+    // For demo purposes, we're simulating a response after a delay
+    setTimeout(() => {
+      // Simulate successful registration
+      const isSuccess = true;
+      
+      setVerificationStatus(isSuccess ? 'success' : 'failed');
+      
+      toast({
+        title: isSuccess ? "Registration Successful" : "Registration Failed",
+        description: isSuccess 
+          ? "Your face has been registered successfully" 
+          : "We couldn't register your face. Please try again.",
+        variant: isSuccess ? "default" : "destructive"
+      });
+      
+      if (onComplete) {
+        onComplete(isSuccess);
+      }
+    }, 2000);
   };
 
   const verifyFace = (image: string) => {
@@ -83,8 +119,8 @@ const FaceRecognition = () => {
     // In a real app, you would send the image to a backend API for verification
     // For demo purposes, we're simulating a response after a delay
     setTimeout(() => {
-      // Randomly succeed or fail for demo purposes
-      const isVerified = Math.random() > 0.3; // 70% success rate for demo
+      // Randomly succeed or fail for demo purposes, but with higher success rate
+      const isVerified = Math.random() > 0.2; // 80% success rate for demo
       
       setVerificationStatus(isVerified ? 'success' : 'failed');
       
@@ -95,6 +131,10 @@ const FaceRecognition = () => {
           : "We couldn't verify your identity. Please try again.",
         variant: isVerified ? "default" : "destructive"
       });
+      
+      if (onComplete) {
+        onComplete(isVerified);
+      }
     }, 2000);
   };
 
@@ -107,9 +147,13 @@ const FaceRecognition = () => {
   return (
     <div className="glass dark:glass-dark rounded-lg p-6 space-y-6 max-w-md w-full mx-auto">
       <div className="text-center space-y-2">
-        <h3 className="font-semibold">Face Recognition</h3>
+        <h3 className="font-semibold">
+          {isRegistration ? "Face Registration" : "Face Recognition"}
+        </h3>
         <p className="text-sm text-muted-foreground">
-          Verify your identity to mark attendance
+          {isRegistration 
+            ? "Register your face to mark attendance in the future" 
+            : "Verify your identity to mark attendance"}
         </p>
       </div>
       
@@ -139,7 +183,7 @@ const FaceRecognition = () => {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center">
             <div className="text-white text-center space-y-2">
               <div className="w-12 h-12 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
-              <p>Verifying your identity...</p>
+              <p>{isRegistration ? "Registering your face..." : "Verifying your identity..."}</p>
             </div>
           </div>
         )}
@@ -150,7 +194,9 @@ const FaceRecognition = () => {
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
                 <Check className="w-8 h-8 text-green-600" />
               </div>
-              <p className="text-green-600 font-medium">Identity Verified</p>
+              <p className="text-green-600 font-medium">
+                {isRegistration ? "Registration Successful" : "Identity Verified"}
+              </p>
             </div>
           </div>
         )}
@@ -161,7 +207,9 @@ const FaceRecognition = () => {
               <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto">
                 <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
-              <p className="text-red-600 font-medium">Verification Failed</p>
+              <p className="text-red-600 font-medium">
+                {isRegistration ? "Registration Failed" : "Verification Failed"}
+              </p>
             </div>
           </div>
         )}

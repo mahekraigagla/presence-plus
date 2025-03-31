@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Menu, X, User, LogOut, Home, QrCode, FileText, ChevronDown } from 'lucide-react';
+import { Menu, X, User, LogOut, Home, QrCode, FileText, Users, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   NavigationMenu,
@@ -74,31 +74,97 @@ const Navbar = ({ userRole }: NavbarProps) => {
                         QR Generator
                       </Link>
                     </NavigationMenuItem>
+                    
                     <NavigationMenuItem>
                       <NavigationMenuTrigger className="flex items-center">
                         <FileText className="mr-2 h-4 w-4" />
                         Reports
                       </NavigationMenuTrigger>
                       <NavigationMenuContent>
+                        <ul className="grid w-[220px] gap-3 p-4">
+                          <li className="row-span-3">
+                            <NavigationMenuLink asChild>
+                              <a
+                                className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-blue-500 to-indigo-700 p-6 no-underline outline-none focus:shadow-md"
+                                href="#"
+                              >
+                                <div className="mb-2 mt-4 text-lg font-medium text-white">
+                                  Attendance Reports
+                                </div>
+                                <p className="text-sm leading-tight text-white/90">
+                                  View and download attendance reports for all your classes
+                                </p>
+                              </a>
+                            </NavigationMenuLink>
+                          </li>
+                          <li>
+                            <NavigationMenuLink asChild>
+                              <a href="#" className="block p-3 hover:bg-accent rounded-md">
+                                <div className="text-sm font-medium">Daily Reports</div>
+                                <p className="text-sm text-muted-foreground leading-tight mt-1">
+                                  View attendance for today
+                                </p>
+                              </a>
+                            </NavigationMenuLink>
+                          </li>
+                          <li>
+                            <NavigationMenuLink asChild>
+                              <a href="#" className="block p-3 hover:bg-accent rounded-md">
+                                <div className="text-sm font-medium">Weekly Reports</div>
+                                <p className="text-sm text-muted-foreground leading-tight mt-1">
+                                  Weekly attendance summaries
+                                </p>
+                              </a>
+                            </NavigationMenuLink>
+                          </li>
+                          <li>
+                            <NavigationMenuLink asChild>
+                              <a href="#" className="block p-3 hover:bg-accent rounded-md">
+                                <div className="text-sm font-medium">Monthly Reports</div>
+                                <p className="text-sm text-muted-foreground leading-tight mt-1">
+                                  Monthly attendance analytics
+                                </p>
+                              </a>
+                            </NavigationMenuLink>
+                          </li>
+                        </ul>
+                      </NavigationMenuContent>
+                    </NavigationMenuItem>
+                    
+                    <NavigationMenuItem>
+                      <NavigationMenuTrigger className="flex items-center">
+                        <Users className="mr-2 h-4 w-4" />
+                        Students
+                      </NavigationMenuTrigger>
+                      <NavigationMenuContent>
                         <ul className="grid w-[200px] gap-3 p-4">
                           <li>
                             <NavigationMenuLink asChild>
-                              <a href="#" className="block p-2 hover:bg-accent rounded-md">
-                                Daily Reports
+                              <a href="#" className="block p-3 hover:bg-accent rounded-md">
+                                <div className="text-sm font-medium">Student List</div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  View all enrolled students
+                                </p>
                               </a>
                             </NavigationMenuLink>
                           </li>
                           <li>
                             <NavigationMenuLink asChild>
-                              <a href="#" className="block p-2 hover:bg-accent rounded-md">
-                                Weekly Reports
+                              <a href="#" className="block p-3 hover:bg-accent rounded-md">
+                                <div className="text-sm font-medium">Attendance Issues</div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Students with attendance problems
+                                </p>
                               </a>
                             </NavigationMenuLink>
                           </li>
                           <li>
                             <NavigationMenuLink asChild>
-                              <a href="#" className="block p-2 hover:bg-accent rounded-md">
-                                Monthly Reports
+                              <a href="#" className="block p-3 hover:bg-accent rounded-md">
+                                <div className="text-sm font-medium">Manual Attendance</div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Mark attendance manually
+                                </p>
                               </a>
                             </NavigationMenuLink>
                           </li>
@@ -111,7 +177,7 @@ const Navbar = ({ userRole }: NavbarProps) => {
                 {userRole === 'student' && (
                   <NavigationMenuItem>
                     <Link 
-                      to="/attendance" 
+                      to="/attendance/current" 
                       className={navigationMenuTriggerStyle()}
                     >
                       <FileText className="mr-2 h-4 w-4" />
@@ -187,11 +253,28 @@ const Navbar = ({ userRole }: NavbarProps) => {
                         </a>
                       </div>
                     </div>
+                    <div className="py-2">
+                      <div className="flex items-center text-base font-medium text-foreground">
+                        <Users className="mr-2 h-5 w-5" />
+                        Students
+                      </div>
+                      <div className="ml-7 mt-2 space-y-2">
+                        <a href="#" className="block py-1 text-sm text-muted-foreground hover:text-foreground">
+                          Student List
+                        </a>
+                        <a href="#" className="block py-1 text-sm text-muted-foreground hover:text-foreground">
+                          Attendance Issues
+                        </a>
+                        <a href="#" className="block py-1 text-sm text-muted-foreground hover:text-foreground">
+                          Manual Attendance
+                        </a>
+                      </div>
+                    </div>
                   </>
                 )}
                 {userRole === 'student' && (
                   <Link 
-                    to="/attendance" 
+                    to="/attendance/current" 
                     className="flex items-center py-2 text-base font-medium text-foreground hover:text-primary"
                     onClick={() => setIsMenuOpen(false)}
                   >
