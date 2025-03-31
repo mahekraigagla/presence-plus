@@ -1,10 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Check, Copy, RefreshCw, MapPin, X } from 'lucide-react';
+import { Check, Copy, RefreshCw, MapPin, X, QrCode, Share2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 const QRGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -15,7 +18,9 @@ const QRGenerator = () => {
   const [hasLocation, setHasLocation] = useState(false);
   const [selectedClass, setSelectedClass] = useState('');
   const [lectureId, setLectureId] = useState('');
+  const [lectureName, setLectureName] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
 
   // Available classes for the teacher
@@ -58,6 +63,7 @@ const QRGenerator = () => {
       // For demo, we're using a placeholder QR code URL
       setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(attendanceUrl)}`);
       setIsGenerating(false);
+      setShowPreview(true);
       
       toast({
         title: "QR Code Generated",
@@ -77,6 +83,36 @@ const QRGenerator = () => {
       });
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const shareQRCode = () => {
+    if (navigator.share) {
+      const attendanceUrl = `${baseUrl}/attendance/${selectedClass}?lecture=${lectureId}&timestamp=${Date.now()}`;
+      navigator.share({
+        title: 'Attendance QR Code',
+        text: `Scan this QR code to mark attendance for ${classes.find(c => c.id === selectedClass)?.name}`,
+        url: attendanceUrl,
+      })
+      .then(() => {
+        toast({
+          title: "QR Code Shared",
+          description: "Successfully shared attendance URL",
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Sharing Failed",
+          description: "Could not share the attendance URL",
+          variant: "destructive"
+        });
+      });
+    } else {
+      toast({
+        title: "Sharing Not Supported",
+        description: "Your browser doesn't support native sharing",
+        variant: "destructive"
+      });
+    }
   };
 
   const getLocation = () => {
@@ -121,141 +157,168 @@ const QRGenerator = () => {
   return (
     <div className="glass dark:glass-dark rounded-lg p-6 space-y-6 max-w-md w-full mx-auto">
       <div className="text-center space-y-2">
-        <h3 className="font-semibold">Generate Attendance QR Code</h3>
+        <h3 className="font-semibold flex items-center justify-center">
+          <QrCode className="mr-2 h-5 w-5" />
+          Generate Attendance QR Code
+        </h3>
         <p className="text-sm text-muted-foreground">
           Students can scan this QR code to mark their attendance
         </p>
       </div>
       
-      <div className="space-y-4">
-        <div className="flex flex-col space-y-2">
-          <label className="text-sm font-medium">Select Class</label>
-          <Select value={selectedClass} onValueChange={setSelectedClass}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a class" />
-            </SelectTrigger>
-            <SelectContent>
-              {classes.map(cls => (
-                <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {!showPreview ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
+            <Card className="border-dashed">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex flex-col space-y-2">
+                  <label className="text-sm font-medium">Select Class</label>
+                  <Select value={selectedClass} onValueChange={setSelectedClass}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select a class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map(cls => (
+                        <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col space-y-2">
+                    <label className="text-sm font-medium">Lecture ID</label>
+                    <Input 
+                      placeholder="Auto-generated ID"
+                      value={lectureId}
+                      onChange={(e) => setLectureId(e.target.value)}
+                      className="bg-background"
+                    />
+                  </div>
+                  
+                  <div className="flex flex-col space-y-2">
+                    <label className="text-sm font-medium">Lecture Name</label>
+                    <Input 
+                      placeholder="Optional"
+                      value={lectureName}
+                      onChange={(e) => setLectureName(e.target.value)}
+                      className="bg-background"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex flex-col space-y-2">
+                  <label className="text-sm font-medium">Validity Period (minutes)</label>
+                  <Select value={expiryTime.toString()} onValueChange={(val) => setExpiryTime(Number(val))}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select validity period" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5 minutes</SelectItem>
+                      <SelectItem value="10">10 minutes</SelectItem>
+                      <SelectItem value="15">15 minutes</SelectItem>
+                      <SelectItem value="30">30 minutes</SelectItem>
+                      <SelectItem value="60">1 hour</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium" htmlFor="location-restriction">
+                      Location Restriction
+                    </Label>
+                    <Switch
+                      id="location-restriction"
+                      checked={hasLocation}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          getLocation();
+                        } else {
+                          clearLocation();
+                        }
+                      }}
+                    />
+                  </div>
+                  
+                  {hasLocation && (
+                    <div className="flex mt-2 text-xs text-green-600 dark:text-green-400 items-center bg-green-50 dark:bg-green-900/20 p-2 rounded">
+                      <MapPin size={12} className="mr-1" />
+                      <span>Location restriction active</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <Button 
+            className="w-full"
+            onClick={generateQRCode}
+            disabled={isGenerating || !selectedClass}
+          >
+            {isGenerating ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Generate QR Code'
+            )}
+          </Button>
         </div>
-        
-        <div className="flex flex-col space-y-2">
-          <label className="text-sm font-medium">Lecture ID (optional)</label>
-          <Input 
-            placeholder="Leave blank for auto-generated ID"
-            value={lectureId}
-            onChange={(e) => setLectureId(e.target.value)}
-          />
-        </div>
-        
-        <div className="flex flex-col space-y-2">
-          <label className="text-sm font-medium">Validity Period (minutes)</label>
-          <Select value={expiryTime.toString()} onValueChange={(val) => setExpiryTime(Number(val))}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select validity period" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="5">5 minutes</SelectItem>
-              <SelectItem value="10">10 minutes</SelectItem>
-              <SelectItem value="15">15 minutes</SelectItem>
-              <SelectItem value="30">30 minutes</SelectItem>
-              <SelectItem value="60">1 hour</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="flex items-center">
-          {!hasLocation ? (
+      ) : (
+        <div className="flex flex-col items-center space-y-4">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-md blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+            <Card className="relative shadow-xl">
+              <CardContent className="p-4 flex flex-col items-center">
+                <img 
+                  src={qrCodeUrl} 
+                  alt="Attendance QR Code" 
+                  className="rounded-md"
+                />
+                <div className="mt-4 text-center space-y-1">
+                  <h4 className="font-medium">{classes.find(c => c.id === selectedClass)?.name}</h4>
+                  {lectureName && <p className="text-sm">{lectureName}</p>}
+                  <p className="text-xs text-muted-foreground">Valid for {expiryTime} minutes</p>
+                  <p className="text-xs text-muted-foreground">ID: {lectureId}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="flex space-x-2 w-full">
             <Button 
-              variant="outline" 
-              size="sm"
-              className="flex space-x-2"
-              onClick={getLocation}
+              className="flex-1"
+              variant="outline"
+              onClick={copyQRCode}
             >
-              <MapPin size={16} />
-              <span>Add Location</span>
+              {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+              Copy URL
             </Button>
-          ) : (
-            <div className="flex w-full items-center space-x-2">
-              <div className="px-3 py-1 bg-green-50 text-green-600 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 rounded-md text-sm flex items-center">
-                <MapPin size={14} className="mr-1" />
-                <span className="truncate">
-                  Location added
-                </span>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 w-8 p-0" 
-                onClick={clearLocation}
-              >
-                <X size={16} className="text-muted-foreground" />
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      <div className="flex flex-col items-center">
-        {qrCodeUrl ? (
-          <div className="flex flex-col items-center space-y-4">
-            <div className="relative group">
-              <img 
-                src={qrCodeUrl} 
-                alt="Attendance QR Code" 
-                className="rounded-md shadow-sm"
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-200 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100">
-                <Button 
-                  size="icon" 
-                  variant="ghost"
-                  className="rounded-full bg-white/80 hover:bg-white/90"
-                  onClick={copyQRCode}
-                >
-                  {copied ? <Check className="h-5 w-5 text-green-500" /> : <Copy className="h-5 w-5" />}
-                </Button>
-              </div>
-            </div>
-            <div className="text-sm text-center space-y-2">
-              <p className="font-medium">Valid for {expiryTime} minutes</p>
-              <p className="text-xs text-muted-foreground">Generated at {new Date().toLocaleTimeString()}</p>
-              {selectedClass && (
-                <p className="text-xs font-medium">Class: {classes.find(c => c.id === selectedClass)?.name}</p>
-              )}
-              {lectureId && (
-                <p className="text-xs text-muted-foreground">Lecture ID: {lectureId}</p>
-              )}
-            </div>
+            <Button 
+              className="flex-1"
+              variant="outline"
+              onClick={shareQRCode}
+            >
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
           </div>
-        ) : (
-          <div className="w-[200px] h-[200px] bg-gray-100 dark:bg-gray-800 rounded-md flex items-center justify-center">
-            <span className="text-sm text-muted-foreground">QR Code will appear here</span>
-          </div>
-        )}
-      </div>
-      
-      <Button 
-        className="w-full"
-        onClick={generateQRCode}
-        disabled={isGenerating || !selectedClass}
-      >
-        {isGenerating ? (
-          <>
-            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-            Generating...
-          </>
-        ) : qrCodeUrl ? (
-          <>
+          
+          <Button 
+            className="w-full"
+            onClick={() => {
+              setShowPreview(false);
+              setQrCodeUrl('');
+            }}
+          >
             <RefreshCw className="mr-2 h-4 w-4" />
             Generate New Code
-          </>
-        ) : (
-          'Generate QR Code'
-        )}
-      </Button>
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
