@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, QrCode, Calendar, Download, ArrowRight, UserCheck, UserX, Bell, FileText } from 'lucide-react';
@@ -128,8 +129,14 @@ const TeacherDashboard = () => {
     navigate('/qr-generator');
   };
 
-  const viewAttendance = (classId) => {
+  const viewAttendance = (classId: string) => {
     navigate(`/attendance/${classId}`);
+  };
+
+  // Fixed handleDownloadReport to accept React mouse event
+  const handleDownloadClick = (format: string) => (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    handleDownloadReport(format);
   };
 
   return (
@@ -391,11 +398,11 @@ const TeacherDashboard = () => {
                                   <p className="text-xs text-muted-foreground">{classItem.attendance} of {classItem.students} students present</p>
                                 </div>
                                 <div className="flex gap-2">
-                                  <Button variant="outline" size="sm" onClick={() => handleDownloadReport('csv')}>
+                                  <Button variant="outline" size="sm" onClick={handleDownloadClick('csv')}>
                                     <Download className="h-4 w-4 mr-2" />
                                     CSV
                                   </Button>
-                                  <Button variant="outline" size="sm" onClick={() => handleDownloadReport('excel')}>
+                                  <Button variant="outline" size="sm" onClick={handleDownloadClick('excel')}>
                                     <Download className="h-4 w-4" />
                                     Excel
                                   </Button>
@@ -446,7 +453,7 @@ const TeacherDashboard = () => {
                               variant="outline" 
                               size="sm" 
                               className="mt-auto w-full" 
-                              onClick={() => handleDownloadReport('csv')}
+                              onClick={handleDownloadClick('csv')}
                             >
                               Download
                             </Button>
@@ -462,7 +469,7 @@ const TeacherDashboard = () => {
                               variant="outline" 
                               size="sm" 
                               className="mt-auto w-full" 
-                              onClick={() => handleDownloadReport('csv')}
+                              onClick={handleDownloadClick('csv')}
                             >
                               Download
                             </Button>
@@ -478,7 +485,7 @@ const TeacherDashboard = () => {
                               variant="outline" 
                               size="sm" 
                               className="mt-auto w-full" 
-                              onClick={() => handleDownloadReport('csv')}
+                              onClick={handleDownloadClick('csv')}
                             >
                               Download
                             </Button>
@@ -521,7 +528,7 @@ const TeacherDashboard = () => {
                             </div>
                           </div>
                           
-                          <Button className="mt-4" onClick={handleDownloadReport}>
+                          <Button className="mt-4" onClick={handleDownloadClick('csv')}>
                             <Download className="mr-2 h-4 w-4" />
                             Generate Custom Report
                           </Button>
