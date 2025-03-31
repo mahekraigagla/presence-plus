@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Users, QrCode, Calendar, Download, ArrowRight, UserCheck, UserX, Bell } from 'lucide-react';
@@ -120,6 +119,14 @@ const TeacherDashboard = () => {
       title: "Notification Sent",
       description: "Warning notification has been sent to Mark Wilson",
     });
+  };
+
+  const handleMarkPresent = (id, status) => {
+    toast({
+      title: `Attendance Updated`,
+      description: `Student's attendance marked as ${status}`,
+    });
+    // Update the state or make an API call to reflect the change
   };
 
   return (
@@ -336,18 +343,28 @@ const TeacherDashboard = () => {
                               <div>
                                 <h4 className="font-medium">{activity.student}</h4>
                                 <p className="text-xs text-muted-foreground">{activity.class} • {activity.time}</p>
-                                <p className="text-xs text-muted-foreground">Method: {activity.verificationMethod}</p>
+                                <p className="text-sm mt-1">
+                                  <span className={`font-medium ${activity.status === 'Verified' ? 'text-green-500' : activity.status === 'Partial' ? 'text-yellow-500' : 'text-red-500'}`}>
+                                    {activity.status}
+                                  </span> ({activity.verificationMethod})
+                                </p>
                               </div>
-                              <div className="flex items-center space-x-2">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  activity.status === 'Verified' 
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                                    : activity.status === 'Partial'
-                                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                      : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                                }`}>
-                                  {activity.status}
-                                </span>
+                              <div className="flex space-x-2">
+                                {activity.status !== 'Verified' && (
+                                  <Button variant="outline" size="sm" onClick={() => handleMarkPresent(activity.id, 'Verified')}>
+                                    Mark Verified
+                                  </Button>
+                                )}
+                                {activity.status !== 'Partial' && (
+                                  <Button variant="outline" size="sm" onClick={() => handleMarkPresent(activity.id, 'Partial')}>
+                                    Mark Partial
+                                  </Button>
+                                )}
+                                {activity.status !== 'Manual' && (
+                                  <Button variant="outline" size="sm" onClick={() => handleMarkPresent(activity.id, 'Manual')}>
+                                    Mark Manual
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           ))}

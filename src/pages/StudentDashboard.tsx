@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Camera, QrCode, Calendar, AlertTriangle, Clock, ArrowRight } from 'lucide-react';
@@ -8,10 +7,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Navbar from '@/components/Navbar';
 import AttendanceStats from '@/components/AttendanceStats';
 import FaceRecognition from '@/components/FaceRecognition';
+import QrScanner from 'react-qr-scanner'; // Replace react-qr-reader with react-qr-scanner
 
 const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  
+  const [isScanning, setIsScanning] = useState(false); // State to toggle QR scanning
+  const [qrResult, setQrResult] = useState(null); // State to store scanned QR code result
+
+  const handleScan = (data: string | null) => {
+    if (data) {
+      setQrResult(data);
+      setIsScanning(false); // Stop scanning after successful scan
+    }
+  };
+
+  const handleError = (error: any) => {
+    console.error('QR Scan Error:', error);
+  };
+
   // Sample upcoming classes for demo
   const upcomingClasses = [
     {
@@ -241,28 +254,27 @@ const StudentDashboard = () => {
                         <CardDescription>Scan the teacher's QR code to mark your attendance</CardDescription>
                       </CardHeader>
                       <CardContent className="flex flex-col items-center justify-center py-10">
-                        <div className="w-full max-w-xs flex flex-col items-center space-y-4">
-                          <div className="p-2 rounded-full bg-primary/10">
-                            <QrCode className="h-12 w-12 text-primary" />
+                        <Button onClick={() => setIsScanning(!isScanning)}>
+                          {isScanning ? 'Stop Scanning' : 'Scan QR Code'}
+                        </Button>
+                        {isScanning && (
+                          <div className="qr-scanner">
+                            <QrScanner
+                              delay={300}
+                              onError={handleError}
+                              onScan={(result) => handleScan(result?.text || null)}
+                              style={{ width: '100%' }}
+                            />
                           </div>
-                          <p className="text-center text-muted-foreground">Use your camera to scan the QR code displayed by your teacher</p>
-                          <Button className="w-full">
-                            <Camera className="mr-2 h-4 w-4" />
-                            Open QR Scanner
-                          </Button>
-                        </div>
+                        )}
+                        {qrResult && (
+                          <div className="mt-4">
+                            <p className="text-green-600 font-bold">Scanned QR Code:</p>
+                            <p>{qrResult}</p>
+                          </div>
+                        )}
                       </CardContent>
-                      <CardFooter className="flex justify-between">
-                        <p className="text-xs text-muted-foreground flex items-center">
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          QR codes are only valid for a limited time
-                        </p>
-                      </CardFooter>
                     </Card>
-                  </motion.div>
-                  
-                  <motion.div variants={fadeInUp}>
-                    <FaceRecognition />
                   </motion.div>
                 </div>
               </TabsContent>
