@@ -69,6 +69,13 @@ export default {
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
 			},
+			boxShadow: {
+				'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
+				'inner-soft': 'inset 0 2px 15px -3px rgba(0, 0, 0, 0.07)'
+			},
+			fontFamily: {
+				sans: ['Inter', 'sans-serif'],
+			},
 			keyframes: {
 				'accordion-down': {
 					from: {

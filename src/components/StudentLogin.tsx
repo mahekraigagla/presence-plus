@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { UserRound, Lock, LogIn, AlertCircle } from 'lucide-react';
+import { UserRound, Lock, LogIn, AlertCircle, Fingerprint } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 interface StudentLoginProps {
@@ -55,6 +55,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
           toast({
             title: "Login successful",
             description: `Welcome back, ${student.fullName}!`,
+            variant: "success"
           });
           
           onLoginSuccess();
@@ -71,89 +72,140 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
     }, 50);
   };
 
+  const formVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.3 }
+    }
+  };
+
   return (
-    <Card className="w-full max-w-md mx-auto glass dark:glass-dark">
-      <CardHeader>
-        <CardTitle>Student Login</CardTitle>
-        <CardDescription>
-          Enter your credentials to mark attendance
-        </CardDescription>
-      </CardHeader>
-      
-      <CardContent>
-        {isLoading ? (
-          <div className="space-y-6 py-4">
-            <div className="flex justify-center">
-              <div className="animate-pulse rounded-full bg-primary/20 p-8">
-                <LogIn className="h-12 w-12 text-primary" />
-              </div>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="w-full max-w-md mx-auto"
+    >
+      <Card className="border-0 shadow-lg bg-white/90 backdrop-blur-sm dark:bg-gray-800/90">
+        <CardHeader className="pb-6">
+          <div className="flex justify-center mb-4">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Fingerprint className="h-8 w-8 text-primary" />
             </div>
-            <Progress value={progress} className="h-2" />
-            <p className="text-center text-sm text-muted-foreground">
-              Verifying your credentials...
-            </p>
           </div>
-        ) : (
-          <form onSubmit={handleLogin} className="space-y-4">
-            {error && (
-              <div className="p-3 rounded-md bg-destructive/10 text-destructive flex items-center space-x-2">
-                <AlertCircle className="h-4 w-4" />
-                <p className="text-sm">{error}</p>
+          <CardTitle className="text-2xl font-bold text-center">Student Login</CardTitle>
+          <CardDescription className="text-center text-gray-500 dark:text-gray-400">
+            Enter your credentials to mark attendance
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          {isLoading ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-6 py-4"
+            >
+              <div className="flex justify-center">
+                <div className="animate-pulse rounded-full bg-primary/20 p-8">
+                  <LogIn className="h-12 w-12 text-primary" />
+                </div>
               </div>
-            )}
-            
-            <div className="space-y-2">
-              <Label htmlFor="rollNumber">Roll Number</Label>
-              <div className="relative">
-                <UserRound className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="rollNumber"
-                  type="text"
-                  placeholder="Enter your roll number"
-                  className="pl-9"
-                  value={rollNumber}
-                  onChange={(e) => setRollNumber(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  className="pl-9"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            <Button type="submit" className="w-full">
-              <LogIn className="mr-2 h-4 w-4" />
-              Login
-            </Button>
-            
-            <div className="text-center space-y-2 pt-2">
-              <p className="text-sm text-muted-foreground">
-                First time marking attendance?
+              <Progress value={progress} className="h-2" />
+              <p className="text-center text-sm text-muted-foreground">
+                Verifying your credentials...
               </p>
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="w-full"
-                onClick={onSignupClick}
-              >
-                Register Now
-              </Button>
-            </div>
-          </form>
-        )}
-      </CardContent>
-    </Card>
+            </motion.div>
+          ) : (
+            <motion.form 
+              initial="hidden"
+              animate="visible"
+              variants={formVariants}
+              onSubmit={handleLogin} 
+              className="space-y-5"
+            >
+              {error && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 flex items-center space-x-2"
+                >
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  <p className="text-sm">{error}</p>
+                </motion.div>
+              )}
+              
+              <motion.div variants={itemVariants} className="space-y-2">
+                <Label htmlFor="rollNumber" className="text-gray-700 dark:text-gray-300">Roll Number</Label>
+                <div className="relative">
+                  <UserRound className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="rollNumber"
+                    type="text"
+                    placeholder="Enter your roll number"
+                    className="pl-10 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700"
+                    value={rollNumber}
+                    onChange={(e) => setRollNumber(e.target.value)}
+                  />
+                </div>
+              </motion.div>
+              
+              <motion.div variants={itemVariants} className="space-y-2">
+                <Label htmlFor="password" className="text-gray-700 dark:text-gray-300">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    className="pl-10 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+              </motion.div>
+              
+              <motion.div variants={itemVariants}>
+                <Button type="submit" className="w-full h-11 font-medium">
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Login
+                </Button>
+              </motion.div>
+              
+              <motion.div variants={itemVariants} className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                <div className="text-center space-y-3">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    First time marking attendance?
+                  </p>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={onSignupClick}
+                  >
+                    Register Now
+                  </Button>
+                </div>
+              </motion.div>
+            </motion.form>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 };
 

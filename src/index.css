@@ -14,7 +14,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 210 100% 50%;
+    --primary: 224 76% 48%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96%;
@@ -55,7 +55,7 @@
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 100% 50%;
+    --primary: 217 91% 60%;
     --primary-foreground: 222 47% 11%;
 
     --secondary: 217 33% 18%;
@@ -124,7 +124,7 @@
   }
   
   .glass-dark {
-    @apply bg-black/50 backdrop-blur-md shadow-sm border border-white/10;
+    @apply bg-gray-900/80 backdrop-blur-md shadow-sm border border-white/10;
   }
 }
 
@@ -155,6 +155,10 @@
     disabled:pointer-events-none disabled:opacity-50
     h-10 px-4 py-2 text-sm
     border border-input bg-background hover:bg-accent hover:text-accent-foreground;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent;
   }
 }
 
