@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
@@ -10,7 +9,7 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { UserCheck, Save, ArrowRight, BookOpen, School, Id, User, UserCircle, KeyRound, GraduationCap } from 'lucide-react';
+import { UserCheck, Save, ArrowRight, BookOpen, School, User, UserCircle, KeyRound, GraduationCap, CreditCard } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 const signupSchema = z.object({
@@ -53,7 +52,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   const handleSubmit = (values: SignupFormValues) => {
     setStep('saving');
     
-    // Simulate saving data
     let progressValue = 0;
     const interval = setInterval(() => {
       progressValue += 5;
@@ -62,13 +60,11 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       if (progressValue >= 100) {
         clearInterval(interval);
         
-        // Store student data in localStorage for demo purposes
-        // In a real app, this would be saved to a database
         const existingStudents = JSON.parse(localStorage.getItem('students') || '[]');
         const newStudent = {
           ...values,
           id: Date.now().toString(),
-          faceRegistered: false, // Will be set to true after face registration
+          faceRegistered: false,
         };
         
         localStorage.setItem('students', JSON.stringify([...existingStudents, newStudent]));
@@ -157,7 +153,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="flex items-center gap-2">
-                          <Id className="h-3.5 w-3.5 text-muted-foreground" />
+                          <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
                           Roll Number
                         </FormLabel>
                         <FormControl>
