@@ -192,6 +192,47 @@
   .card-gradient {
     @apply bg-gradient-to-br from-white/80 to-white/40 dark:from-gray-900/80 dark:to-gray-900/40 backdrop-blur-md shadow-xl rounded-xl p-6 border border-white/10 dark:border-white/5;
   }
+  
+  .bg-gradient-pattern {
+    @apply relative;
+  }
+  
+  .bg-gradient-pattern::before {
+    @apply content-[''] absolute inset-0 -z-10 opacity-20;
+    background-image: 
+      linear-gradient(135deg, rgba(99, 102, 241, 0.1) 25%, transparent 25%), 
+      linear-gradient(225deg, rgba(99, 102, 241, 0.1) 25%, transparent 25%), 
+      linear-gradient(45deg, rgba(99, 102, 241, 0.1) 25%, transparent 25%), 
+      linear-gradient(315deg, rgba(99, 102, 241, 0.1) 25%, transparent 25%);
+    background-position: 25px 0, 25px 0, 0 0, 0 0;
+    background-size: 50px 50px;
+    background-repeat: repeat;
+  }
+  
+  .feature-card {
+    @apply relative overflow-hidden rounded-xl p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+  
+  .feature-card::before {
+    @apply content-[''] absolute inset-0 -z-10 bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity duration-300;
+  }
+  
+  .feature-card:hover::before {
+    @apply opacity-100;
+  }
+  
+  .glow-effect {
+    @apply relative;
+  }
+  
+  .glow-effect::after {
+    @apply content-[''] absolute -inset-[1px] rounded-[inherit] opacity-0 transition-opacity duration-300 
+    bg-gradient-to-r from-primary/50 via-primary/30 to-primary/50 blur-md;
+  }
+  
+  .glow-effect:hover::after {
+    @apply opacity-100;
+  }
 }
 
 @layer utilities {
@@ -221,5 +262,27 @@
   .dark .neon-glow {
     box-shadow: 0 0 15px theme('colors.primary.DEFAULT'), 
                 0 0 30px theme('colors.primary.DEFAULT');
+  }
+  
+  .animated-gradient {
+    background: linear-gradient(-45deg, #4338ca, #6366f1, #8b5cf6, #d946ef);
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+  }
+  
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+  
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
   }
 }
