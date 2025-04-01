@@ -55,7 +55,8 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
           toast({
             title: "Login successful",
             description: `Welcome back, ${student.fullName}!`,
-            variant: "success"
+            // Changed from 'success' to 'default' to fix the TypeScript error
+            variant: "default"
           });
           
           onLoginSuccess();
