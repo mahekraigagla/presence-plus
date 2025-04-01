@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, QrCode, Calendar, Download, ArrowRight, UserCheck, UserX, Bell, FileText } from 'lucide-react';
+import { Users, QrCode, Calendar, Download, ArrowRight, UserCheck, UserX, Bell, FileText, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,11 +11,35 @@ import Navbar from '@/components/Navbar';
 import AttendanceStats from '@/components/AttendanceStats';
 import QRGenerator from '@/components/QRGenerator';
 import AttendanceTable from '@/components/AttendanceTable';
+import TeacherProfile from '@/components/TeacherProfile';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const TeacherDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const { toast } = useToast();
   const navigate = useNavigate();
+  
+  // In a real app, this would come from an API or auth context
+  const teacherData = {
+    id: 'FAC-5678',
+    name: 'Prof. Sarah Anderson',
+    email: 'anderson@university.edu',
+    department: 'Computer Science Department',
+    subjects: ['Computer Science', 'Data Structures', 'Database Systems'],
+    classesToday: 3,
+    nextClass: {
+      name: 'Database Systems',
+      time: '2:00 PM - 3:30 PM',
+      location: 'Lab 3'
+    }
+  };
   
   // Sample classes for demo
   const classes = [
@@ -133,7 +157,7 @@ const TeacherDashboard = () => {
     navigate(`/attendance/${classId}`);
   };
 
-  // Fixed handleDownloadReport to accept React mouse event
+  // Fixed handleDownloadClick to accept React mouse event
   const handleDownloadClick = (format: string) => (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     handleDownloadReport(format);
@@ -157,22 +181,9 @@ const TeacherDashboard = () => {
               }
             }}
           >
-            {/* Welcome Section with improved layout */}
-            <motion.div 
-              variants={fadeInUp} 
-              className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm"
-            >
-              <div>
-                <h1 className="text-2xl font-bold">Welcome, Prof. Anderson</h1>
-                <p className="text-muted-foreground">Faculty ID: FAC-5678 | Computer Science Department</p>
-              </div>
-              <Button 
-                onClick={navigateToQRGenerator} 
-                className="md:w-auto w-full bg-primary hover:bg-primary/90"
-              >
-                <QrCode className="mr-2 h-4 w-4" />
-                Generate QR Code
-              </Button>
+            {/* Teacher Profile Section */}
+            <motion.div variants={fadeInUp}>
+              <TeacherProfile teacher={teacherData} />
             </motion.div>
             
             {/* Main Dashboard Content */}
@@ -397,16 +408,28 @@ const TeacherDashboard = () => {
                                   </p>
                                   <p className="text-xs text-muted-foreground">{classItem.attendance} of {classItem.students} students present</p>
                                 </div>
-                                <div className="flex gap-2">
-                                  <Button variant="outline" size="sm" onClick={handleDownloadClick('csv')}>
-                                    <Download className="h-4 w-4 mr-2" />
-                                    CSV
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={handleDownloadClick('excel')}>
-                                    <Download className="h-4 w-4" />
-                                    Excel
-                                  </Button>
-                                </div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                      <Download className="h-4 w-4 mr-2" />
+                                      Export
+                                      <ChevronDown className="h-4 w-4 ml-1" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => handleDownloadReport('csv')}>
+                                      CSV
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDownloadReport('excel')}>
+                                      Excel
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleDownloadReport('pdf')}>
+                                      PDF
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             </div>
                           </div>

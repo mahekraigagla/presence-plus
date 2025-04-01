@@ -1,121 +1,84 @@
 
 import React, { useState, useEffect } from 'react';
+import { useParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useParams, useSearchParams } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import Navbar from '@/components/Navbar';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import FaceRecognition from '@/components/FaceRecognition';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, Info } from 'lucide-react';
+import QRAuthVerification from '@/components/QRAuthVerification';
+import Navbar from '@/components/Navbar';
+import { Check, QrCode, UserX } from 'lucide-react';
 
 const AttendancePage = () => {
-  const [searchParams] = useSearchParams();
-  const { classId } = useParams();
-  const [isRegistered, setIsRegistered] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
-  const [attendanceMarked, setAttendanceMarked] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const { toast } = useToast();
-  
+  const { classId } = useParams<{ classId: string }>();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
   const lectureId = searchParams.get('lecture') || '';
   const timestamp = searchParams.get('timestamp') || '';
-  const latitude = searchParams.get('lat') || null;
-  const longitude = searchParams.get('lng') || null;
-
-  // Class information mapping
-  const classInfo = {
-    'cs101': 'Introduction to Computer Science',
-    'cs102': 'Data Structures and Algorithms',
-    'cs103': 'Database Systems',
-  };
-
+  const hasLocationData = searchParams.has('lat') && searchParams.has('lng');
+  
+  const [stage, setStage] = useState<'auth' | 'face-recognition' | 'success' | 'failed'>('auth');
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
+  const [attendanceMarked, setAttendanceMarked] = useState(false);
+  const { toast } = useToast();
+  
   useEffect(() => {
-    // Check if user has registered face before
-    // In a real app, this would check against user data in the backend
-    const hasRegisteredFace = localStorage.getItem('faceRegistered') === 'true';
-    setIsRegistered(hasRegisteredFace);
+    // Check if the student has registered their face before
+    const hasFaceRegistered = localStorage.getItem('faceRegistered') === 'true';
+    setIsFirstVisit(!hasFaceRegistered);
     
-    // Check if the QR code has location restrictions
-    if (latitude && longitude) {
-      checkLocation(Number(latitude), Number(longitude));
-    }
-  }, [latitude, longitude]);
-
-  const checkLocation = (targetLat: number, targetLng: number) => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const currentLat = position.coords.latitude;
-          const currentLng = position.coords.longitude;
-          
-          // Calculate rough distance (this is a simplified calculation)
-          const distance = calculateDistance(currentLat, currentLng, targetLat, targetLng);
-          
-          if (distance > 0.1) { // More than 100 meters away
-            toast({
-              title: "Location Verification Failed",
-              description: "You're not in the required location to mark attendance",
-              variant: "destructive"
-            });
-          } else {
-            toast({
-              title: "Location Verified",
-              description: "Your location has been verified",
-            });
-          }
-        },
-        (error) => {
-          toast({
-            title: "Location Error",
-            description: "Could not verify your location. Please enable location services.",
-            variant: "destructive"
-          });
-        }
-      );
-    }
-  };
-
-  // Simple distance calculation (Haversine formula)
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Radius of the earth in km
-    const dLat = deg2rad(lat2-lat1);
-    const dLon = deg2rad(lon2-lon1); 
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2); 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-    const d = R * c; // Distance in km
-    return d;
-  };
-
-  const deg2rad = (deg: number) => {
-    return deg * (Math.PI/180);
-  };
-
-  const handleRegistrationComplete = (success: boolean) => {
-    if (success) {
-      localStorage.setItem('faceRegistered', 'true');
-      setIsRegistered(true);
+    // Check if we have proper QR code data
+    if (!classId || !lectureId || !timestamp) {
       toast({
-        title: "Face Registration Successful",
-        description: "Your face has been registered for future attendance.",
+        title: "Invalid QR Code",
+        description: "This QR code is missing required information. Please scan a valid QR code.",
+        variant: "destructive"
+      });
+    }
+    
+    // In a real app, you would fetch the lecture and class details from the API here
+  }, [classId, lectureId, timestamp, toast]);
+
+  const handleAuthComplete = (success: boolean) => {
+    if (success) {
+      setStage('face-recognition');
+    } else {
+      toast({
+        title: "Authentication Failed",
+        description: "Could not verify your identity. Please try again or contact your teacher.",
+        variant: "destructive"
       });
     }
   };
 
-  const handleVerificationComplete = (success: boolean) => {
-    setIsVerified(success);
+  const handleFaceRecognitionComplete = (success: boolean) => {
     if (success) {
-      // Mark attendance in the system
+      setStage('success');
       setAttendanceMarked(true);
+      
+      // In a real app, you would submit the attendance to an API here
       toast({
         title: "Attendance Marked",
-        description: "Your attendance has been successfully recorded.",
+        description: `Your attendance for ${getClassNameById(classId || '')} has been recorded successfully.`,
+      });
+    } else {
+      setStage('failed');
+      toast({
+        title: "Face Recognition Failed",
+        description: "Could not verify your face. Please try again or contact your teacher.",
+        variant: "destructive"
       });
     }
+  };
+
+  // Mock function to get class name from class ID
+  const getClassNameById = (id: string) => {
+    const classes: Record<string, string> = {
+      'cs101': 'Introduction to Computer Science',
+      'cs102': 'Data Structures and Algorithms',
+      'cs103': 'Database Systems',
+    };
+    return classes[id] || `Class ${id}`;
   };
 
   const fadeInUp = {
@@ -137,7 +100,7 @@ const AttendancePage = () => {
       <main className="flex-grow pt-24 pb-16">
         <div className="container mx-auto px-4">
           <motion.div 
-            className="max-w-2xl mx-auto"
+            className="grid grid-cols-1 gap-6"
             initial="hidden"
             animate="visible"
             variants={{
@@ -149,87 +112,89 @@ const AttendancePage = () => {
             }}
           >
             <motion.div variants={fadeInUp}>
-              <Card className="glass dark:glass-dark">
-                <CardHeader className="text-center">
-                  <CardTitle>Attendance Verification</CardTitle>
-                  <CardDescription>
-                    {classId && lectureId ? (
-                      <div className="space-y-1">
-                        <p>Class: {classInfo[classId] || classId}</p>
-                        <p>Lecture ID: {lectureId}</p>
-                        <p>Date: {new Date(parseInt(timestamp) || Date.now()).toLocaleDateString()}</p>
+              <h1 className="text-2xl font-bold">{getClassNameById(classId || '')}</h1>
+              <p className="text-muted-foreground mt-1">Attendance verification for Lecture {lectureId.split('-')[1] || lectureId}</p>
+            </motion.div>
+            
+            <motion.div variants={fadeInUp} className="flex justify-center">
+              {stage === 'auth' && (
+                <QRAuthVerification 
+                  qrData={{
+                    lectureId,
+                    classId: classId || '',
+                    lectureName: getClassNameById(classId || ''),
+                    teacherName: 'Prof. Anderson',
+                    timestamp: parseInt(timestamp),
+                    location: hasLocationData ? {
+                      lat: parseFloat(searchParams.get('lat') || '0'),
+                      lng: parseFloat(searchParams.get('lng') || '0'),
+                    } : undefined,
+                  }}
+                  onComplete={handleAuthComplete}
+                />
+              )}
+              
+              {stage === 'face-recognition' && (
+                <FaceRecognition 
+                  isRegistration={isFirstVisit}
+                  onComplete={handleFaceRecognitionComplete}
+                />
+              )}
+              
+              {stage === 'success' && (
+                <Card className="w-full max-w-md mx-auto glass dark:glass-dark">
+                  <CardContent className="pt-6 pb-6 flex flex-col items-center text-center">
+                    <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6 dark:bg-green-900/30">
+                      <Check className="h-10 w-10 text-green-600 dark:text-green-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold mb-2">Attendance Confirmed</h2>
+                    <p className="text-muted-foreground mb-6">
+                      Your attendance has been successfully recorded for {getClassNameById(classId || '')}.
+                    </p>
+                    <div className="w-full p-4 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Date:</span>
+                        <span className="font-medium">{new Date().toLocaleDateString()}</span>
                       </div>
-                    ) : 'Mark your attendance'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {attendanceMarked ? (
-                    <div className="text-center space-y-4">
-                      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Time:</span>
+                        <span className="font-medium">{new Date().toLocaleTimeString()}</span>
                       </div>
-                      <h3 className="text-xl font-medium text-green-600">Attendance Successful!</h3>
-                      <p className="text-muted-foreground">
-                        Your attendance has been recorded for this lecture.
-                      </p>
-                      <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg space-y-2">
-                        <p>
-                          <span className="font-medium">Class:</span> {classInfo[classId as string] || classId}
-                        </p>
-                        <p>
-                          <span className="font-medium">Date:</span> {new Date().toLocaleDateString()}
-                        </p>
-                        <p>
-                          <span className="font-medium">Time:</span> {new Date().toLocaleTimeString()}
-                        </p>
-                        <p>
-                          <span className="font-medium">Verification Method:</span> QR Code + Face Recognition
-                        </p>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Lecture ID:</span>
+                        <span className="font-medium">{lectureId}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Verification:</span>
+                        <span className="font-medium">QR + Face Recognition</span>
                       </div>
                     </div>
-                  ) : !isRegistered ? (
-                    <div className="space-y-4">
-                      <div className="text-center mb-6">
-                        <h3 className="text-lg font-medium">First Time? Register Your Face</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          To mark attendance, we need to register your face first.
-                        </p>
-                      </div>
-                      
-                      <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-4">
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" className="flex items-center justify-between w-full">
-                            <div className="flex items-center text-sm">
-                              <Info className="h-4 w-4 mr-2" />
-                              <span>Why do we need your face data?</span>
-                            </div>
-                            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="text-sm p-4 bg-muted/50 rounded-lg mt-2 text-muted-foreground">
-                          <p>Your face data is used to verify your identity when marking attendance. This ensures that 
-                          attendance can only be marked by you and prevents proxy attendance.</p>
-                          <p className="mt-2">Your data is securely stored and is only used for attendance verification purposes.</p>
-                        </CollapsibleContent>
-                      </Collapsible>
-                      
-                      <FaceRecognition isRegistration onComplete={handleRegistrationComplete} />
+                    <p className="text-xs text-muted-foreground">
+                      A confirmation has been sent to your registered email address.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {stage === 'failed' && (
+                <Card className="w-full max-w-md mx-auto glass dark:glass-dark">
+                  <CardContent className="pt-6 pb-6 flex flex-col items-center text-center">
+                    <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-6 dark:bg-red-900/30">
+                      <UserX className="h-10 w-10 text-red-600 dark:text-red-400" />
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="text-center mb-6">
-                        <h3 className="text-lg font-medium">Verify Your Identity</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Look into the camera to verify your identity and mark attendance.
-                        </p>
-                      </div>
-                      <FaceRecognition onComplete={handleVerificationComplete} />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    <h2 className="text-2xl font-bold mb-2">Verification Failed</h2>
+                    <p className="text-muted-foreground mb-6">
+                      We couldn't verify your identity. Please try again or contact your teacher for assistance.
+                    </p>
+                    <button 
+                      className="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-4 rounded"
+                      onClick={() => setStage('face-recognition')}
+                    >
+                      Try Again
+                    </button>
+                  </CardContent>
+                </Card>
+              )}
             </motion.div>
           </motion.div>
         </div>
