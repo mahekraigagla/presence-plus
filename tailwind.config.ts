@@ -62,6 +62,11 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				navyblue: {
+					DEFAULT: '#0f172a', // Dark navy blue for backgrounds
+					light: '#1e293b',  // Lighter navy for cards/elements
+					dark: '#080f1d',   // Darker navy for contrast
 				}
 			},
 			borderRadius: {
