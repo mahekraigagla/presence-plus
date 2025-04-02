@@ -238,11 +238,15 @@ const AboutPage = () => {
                 
                 <div className="order-first lg:order-last">
                   <div className="relative rounded-xl overflow-hidden aspect-square">
-                    <img src="/placeholder.svg" alt="AI Technology" className="w-full h-full object-cover" />
+                    <img 
+                      src="/lovable-uploads/35d1030f-80da-44af-9bdb-e17e5adfaea8.png" 
+                      alt="OpenCV AI Technology" 
+                      className="w-full h-full object-cover" 
+                    />
                     <div className="absolute inset-0 bg-gradient-to-tr from-black/40 via-black/20 to-transparent flex items-end">
                       <div className="p-6">
                         <span className="text-sm text-white/80 bg-black/30 px-2 py-1 rounded-full">
-                          AI-Powered Technology
+                          AI-Powered OpenCV Technology
                         </span>
                       </div>
                     </div>
