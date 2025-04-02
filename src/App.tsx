@@ -11,6 +11,9 @@ import StudentDashboard from "./pages/StudentDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import QRGeneratorPage from "./pages/QRGeneratorPage";
 import AttendancePage from "./pages/AttendancePage";
+import MarkAttendancePage from "./pages/MarkAttendancePage";
+import AboutPage from "./pages/AboutPage";
+import ContactPage from "./pages/ContactPage";
 import NotFound from "./pages/NotFound";
 import { StrictMode } from "react";
 
@@ -31,6 +34,9 @@ const App = () => (
             <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
             <Route path="/qr-generator" element={<QRGeneratorPage />} />
             <Route path="/attendance/:classId" element={<AttendancePage />} />
+            <Route path="/mark-attendance" element={<MarkAttendancePage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

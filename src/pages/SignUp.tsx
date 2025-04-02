@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import StudentSignup from '@/components/StudentSignup';
+import TeacherSignup from '@/components/TeacherSignup';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Navbar from '@/components/Navbar';
 
@@ -14,11 +15,15 @@ const SignUp = () => {
     navigate('/student-dashboard');
   };
 
+  const handleTeacherSignupComplete = () => {
+    navigate('/teacher-dashboard');
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       
-      <main className="flex-grow flex items-center justify-center p-4">
+      <main className="flex-grow flex items-center justify-center p-4 mt-16">
         <motion.div 
           className="w-full max-w-4xl"
           initial={{ opacity: 0, y: 20 }}
@@ -52,21 +57,10 @@ const SignUp = () => {
               </TabsContent>
               
               <TabsContent value="teacher">
-                <div className="glass dark:glass-dark p-8 rounded-2xl text-center">
-                  <div className="py-12 px-4">
-                    <h3 className="text-2xl font-semibold mb-4">Teacher Registration</h3>
-                    <p className="text-muted-foreground mb-6">
-                      Teacher registration is currently available through the administrator.
-                      Please contact your institution's admin for an account.
-                    </p>
-                    <button 
-                      onClick={() => navigate('/login')}
-                      className="btn-primary"
-                    >
-                      Back to Login
-                    </button>
-                  </div>
-                </div>
+                <TeacherSignup 
+                  onComplete={handleTeacherSignupComplete} 
+                  onCancel={() => navigate('/login')}
+                />
               </TabsContent>
             </Tabs>
           </div>

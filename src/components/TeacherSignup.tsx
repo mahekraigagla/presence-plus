@@ -5,12 +5,11 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { UserCheck, Save, ArrowRight, BookOpen, School, User, UserCircle, KeyRound, GraduationCap, CreditCard, Eye, EyeOff } from 'lucide-react';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { UserCheck, Save, ArrowRight, BookOpen, School, User, KeyRound, GraduationCap, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { 
   Select, 
@@ -20,23 +19,28 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 
-const signupSchema = z.object({
-  fullName: z.string().min(3, "Full name must be at least 3 characters"),
-  rollNumber: z.string().min(3, "Roll number must be at least 3 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  department: z.string().min(1, "Department is required"),
+const subjectSchema = z.object({
+  name: z.string().min(1, "Subject name is required"),
   year: z.string().min(1, "Year is required"),
+  division: z.string().min(1, "Division is required")
 });
 
+const signupSchema = z.object({
+  fullName: z.string().min(3, "Full name must be at least 3 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  subjects: z.array(subjectSchema).min(1, "At least one subject is required")
+});
+
+type SubjectFormValues = z.infer<typeof subjectSchema>;
 type SignupFormValues = z.infer<typeof signupSchema>;
 
-interface StudentSignupProps {
-  onComplete: (studentData: SignupFormValues) => void;
+interface TeacherSignupProps {
+  onComplete: (teacherData: SignupFormValues) => void;
   onCancel: () => void;
 }
 
-const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) => {
+const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) => {
   const [step, setStep] = useState<'form' | 'saving'>('form');
   const [progress, setProgress] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
@@ -45,14 +49,31 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      rollNumber: '',
       fullName: '',
+      email: '',
       password: '',
-      department: '',
-      year: '',
-      email: ''
+      subjects: [{ name: '', year: '', division: '' }]
     },
   });
+
+  const addSubject = () => {
+    const currentSubjects = form.getValues().subjects || [];
+    form.setValue('subjects', [...currentSubjects, { name: '', year: '', division: '' }]);
+  };
+
+  const removeSubject = (index: number) => {
+    const currentSubjects = form.getValues().subjects;
+    if (currentSubjects.length > 1) {
+      const newSubjects = currentSubjects.filter((_, i) => i !== index);
+      form.setValue('subjects', newSubjects);
+    } else {
+      toast({
+        title: "Cannot remove",
+        description: "You need at least one subject",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleSubmit = (values: SignupFormValues) => {
     setStep('saving');
@@ -65,19 +86,19 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       if (progressValue >= 100) {
         clearInterval(interval);
         
-        const existingStudents = JSON.parse(localStorage.getItem('students') || '[]');
-        const newStudent = {
+        // Store in localStorage for demo purposes
+        const existingTeachers = JSON.parse(localStorage.getItem('teachers') || '[]');
+        const newTeacher = {
           ...values,
           id: Date.now().toString(),
-          faceRegistered: false,
         };
         
-        localStorage.setItem('students', JSON.stringify([...existingStudents, newStudent]));
-        localStorage.setItem('currentStudent', JSON.stringify(newStudent));
+        localStorage.setItem('teachers', JSON.stringify([...existingTeachers, newTeacher]));
+        localStorage.setItem('currentTeacher', JSON.stringify(newTeacher));
         
         toast({
           title: "Registration successful",
-          description: "Your account has been created. Now please register your face.",
+          description: "Your teacher account has been created.",
         });
         
         onComplete(values);
@@ -111,12 +132,12 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       <CardHeader className="relative pb-4 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center gap-4 mb-2">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 rounded-xl">
-            <GraduationCap className="h-6 w-6 text-white" />
+            <School className="h-6 w-6 text-white" />
           </div>
           <div className="text-left">
-            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Student Registration</CardTitle>
+            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Teacher Registration</CardTitle>
             <CardDescription className="text-muted-foreground">
-              Create your account to start marking attendance
+              Create your account to start managing classes
             </CardDescription>
           </div>
         </div>
@@ -130,7 +151,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                 variants={formVariants}
                 initial="hidden"
                 animate="visible"
-                className="grid grid-cols-1 md:grid-cols-2 gap-5"
+                className="space-y-5"
               >
                 <motion.div variants={itemVariants}>
                   <FormField
@@ -154,25 +175,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                 <motion.div variants={itemVariants}>
                   <FormField
                     control={form.control}
-                    name="rollNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
-                          Roll Number
-                        </FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., RN2023001" className="bg-white/50 dark:bg-gray-900/50" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </motion.div>
-                
-                <motion.div variants={itemVariants}>
-                  <FormField
-                    control={form.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
@@ -181,7 +183,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                           Email Address
                         </FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="your.email@example.com" className="bg-white/50 dark:bg-gray-900/50" {...field} />
+                          <Input type="email" placeholder="teacher@example.com" className="bg-white/50 dark:bg-gray-900/50" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -223,67 +225,111 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                 </motion.div>
 
                 <motion.div variants={itemVariants}>
-                  <FormField
-                    control={form.control}
-                    name="department"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <School className="h-3.5 w-3.5 text-muted-foreground" />
-                          Department
-                        </FormLabel>
-                        <FormControl>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
+                  <div className="border-t border-gray-100 dark:border-gray-800 pt-4 pb-2">
+                    <h3 className="text-lg font-medium mb-4 flex items-center">
+                      <BookOpen className="h-5 w-5 mr-2 text-primary" />
+                      Subjects Taught
+                    </h3>
+                    
+                    {form.getValues().subjects.map((_, index) => (
+                      <div key={index} className="mb-6 p-4 bg-white/30 dark:bg-gray-800/30 rounded-lg">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="text-sm font-medium">Subject {index + 1}</h4>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeSubject(index)}
+                            className="h-8 w-8 p-0"
                           >
-                            <SelectTrigger className="bg-white/50 dark:bg-gray-900/50">
-                              <SelectValue placeholder="Select Department" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="COMP">COMP</SelectItem>
-                              <SelectItem value="IT">IT</SelectItem>
-                              <SelectItem value="AI-DS">AI-DS</SelectItem>
-                              <SelectItem value="EXTC">EXTC</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </motion.div>
-                
-                <motion.div variants={itemVariants}>
-                  <FormField
-                    control={form.control}
-                    name="year"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />
-                          Year
-                        </FormLabel>
-                        <FormControl>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                          >
-                            <SelectTrigger className="bg-white/50 dark:bg-gray-900/50">
-                              <SelectValue placeholder="Select Year" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="FY">FY</SelectItem>
-                              <SelectItem value="SY">SY</SelectItem>
-                              <SelectItem value="TY">TY</SelectItem>
-                              <SelectItem value="LY">LY</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <FormField
+                            control={form.control}
+                            name={`subjects.${index}.name`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs">Subject Name</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="e.g., Mathematics" className="bg-white/50 dark:bg-gray-900/50" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name={`subjects.${index}.year`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs">Year</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange} 
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="bg-white/50 dark:bg-gray-900/50">
+                                      <SelectValue placeholder="Select Year" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="FY">FY</SelectItem>
+                                    <SelectItem value="SY">SY</SelectItem>
+                                    <SelectItem value="TY">TY</SelectItem>
+                                    <SelectItem value="LY">LY</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name={`subjects.${index}.division`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs">Division</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange} 
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="bg-white/50 dark:bg-gray-900/50">
+                                      <SelectValue placeholder="Select Division" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="COMP-A">COMP-A</SelectItem>
+                                    <SelectItem value="COMP-B">COMP-B</SelectItem>
+                                    <SelectItem value="IT-A">IT-A</SelectItem>
+                                    <SelectItem value="IT-B">IT-B</SelectItem>
+                                    <SelectItem value="AI-DS-A">AI-DS-A</SelectItem>
+                                    <SelectItem value="EXTC-A">EXTC-A</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addSubject}
+                      className="w-full mt-2"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Another Subject
+                    </Button>
+                  </div>
                 </motion.div>
               </motion.div>
               
@@ -327,7 +373,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
               <div className="space-y-4 text-center">
                 <h3 className="text-xl font-semibold">Creating Your Account</h3>
                 <p className="text-muted-foreground text-sm max-w-xs mx-auto">
-                  We're setting up your profile. This will only take a moment.
+                  We're setting up your teacher profile. This will only take a moment.
                 </p>
               </div>
               
@@ -343,4 +389,4 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   );
 };
 
-export default StudentSignup;
+export default TeacherSignup;

@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { UserPlus, LogIn, CheckSquare, ShieldCheck, BarChart3, Users } from 'lucide-react';
+import { UserPlus, LogIn, CheckSquare, ShieldCheck, BarChart3, Users, Camera, QrCode, ArrowRight } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 
 const Index = () => {
@@ -35,7 +35,7 @@ const Index = () => {
       
       <main className="flex-grow flex flex-col">
         {/* Hero Section */}
-        <section className="relative py-20 md:py-32 px-6">
+        <section className="relative py-20 md:py-32 px-6 mt-16">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-400/20 via-transparent to-transparent"></div>
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-blue-400/20 via-transparent to-transparent"></div>
           
@@ -47,8 +47,9 @@ const Index = () => {
               variants={staggerContainer}
             >
               <motion.div variants={fadeInUp} className="text-center lg:text-left">
+                <span className="inline-block py-1 px-3 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">AI-Powered Attendance System</span>
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-gradient">
-                  Smart Attendance System
+                  Presence+
                 </h1>
                 <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0">
                   Using AI-powered face recognition for secure and efficient attendance tracking in educational institutions.
@@ -86,8 +87,96 @@ const Index = () => {
           </div>
         </section>
         
-        {/* Features Section */}
+        {/* How It Works Section */}
         <section className="py-20 px-6 bg-muted/30">
+          <div className="container mx-auto max-w-6xl">
+            <motion.div 
+              className="text-center mb-16"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">How It Works</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Our intelligent attendance system simplifies the process with cutting-edge technology
+              </p>
+            </motion.div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <motion.div 
+                className="card-gradient p-8 rounded-xl relative overflow-hidden"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+              >
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/5 rounded-full"></div>
+                <div className="relative">
+                  <div className="bg-primary/10 p-4 rounded-xl w-fit mb-6">
+                    <UserPlus className="h-8 w-8 text-primary" />
+                  </div>
+                  <span className="absolute top-0 right-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white font-bold">1</span>
+                  <h3 className="text-xl font-semibold mb-3">Register</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Students create an account and register their face during the sign-up process.
+                  </p>
+                  <Link to="/signup" className="text-primary hover:underline flex items-center">
+                    <span>Get Started</span>
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Link>
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                className="card-gradient p-8 rounded-xl relative overflow-hidden"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/5 rounded-full"></div>
+                <div className="relative">
+                  <div className="bg-primary/10 p-4 rounded-xl w-fit mb-6">
+                    <QrCode className="h-8 w-8 text-primary" />
+                  </div>
+                  <span className="absolute top-0 right-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white font-bold">2</span>
+                  <h3 className="text-xl font-semibold mb-3">QR Generation</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Teachers generate unique QR codes for their classes to track attendance.
+                  </p>
+                  <Link to="/about" className="text-primary hover:underline flex items-center">
+                    <span>Learn More</span>
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Link>
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                className="card-gradient p-8 rounded-xl relative overflow-hidden"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/5 rounded-full"></div>
+                <div className="relative">
+                  <div className="bg-primary/10 p-4 rounded-xl w-fit mb-6">
+                    <Camera className="h-8 w-8 text-primary" />
+                  </div>
+                  <span className="absolute top-0 right-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white font-bold">3</span>
+                  <h3 className="text-xl font-semibold mb-3">Mark Attendance</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Students mark attendance with a simple face scan - quick, secure, and reliable.
+                  </p>
+                  <Link to="/mark-attendance" className="text-primary hover:underline flex items-center">
+                    <span>View Process</span>
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Link>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+        
+        {/* Features Section */}
+        <section className="py-20 px-6">
           <div className="container mx-auto max-w-6xl">
             <motion.div 
               className="text-center mb-16"
@@ -206,7 +295,7 @@ const Index = () => {
         <div className="container mx-auto">
           <div className="text-center">
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Smart Attendance System. All rights reserved.
+              © {new Date().getFullYear()} Presence+ Attendance System. All rights reserved.
             </p>
           </div>
         </div>
