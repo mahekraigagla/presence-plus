@@ -51,61 +51,64 @@ const AboutPage = () => {
               transition={{ duration: 0.8, delay: 0.4 }}
               className="glass dark:glass-dark rounded-2xl p-8 md:p-12"
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-                <div>
-                  <h2 className="text-2xl md:text-3xl font-bold mb-6">How It Works</h2>
-                  <div className="space-y-6">
-                    <div className="flex gap-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <span className="font-bold text-primary">1</span>
+              <div className="grid grid-cols-1 gap-10">
+                <div className="mb-8">
+                  <img 
+                    src="/lovable-uploads/487a721c-b459-448c-99bf-4bfb8e8447a3.png" 
+                    alt="AI Technology for Attendance Tracking" 
+                    className="w-full h-auto rounded-xl shadow-lg mb-8"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-bold mb-6">How It Works</h2>
+                    <div className="space-y-6">
+                      <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <span className="font-bold text-primary">1</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold mb-1">Student Registration</h3>
+                          <p className="text-muted-foreground">Students create accounts and register their faces during the sign-up process.</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-semibold mb-1">Student Registration</h3>
-                        <p className="text-muted-foreground">Students create accounts and register their faces during the sign-up process.</p>
+                      
+                      <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <span className="font-bold text-primary">2</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold mb-1">Teacher QR Generation</h3>
+                          <p className="text-muted-foreground">Teachers generate unique QR codes for their classes and subjects.</p>
+                        </div>
                       </div>
-                    </div>
-                    
-                    <div className="flex gap-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <span className="font-bold text-primary">2</span>
+                      
+                      <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <span className="font-bold text-primary">3</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold mb-1">Face Recognition</h3>
+                          <p className="text-muted-foreground">Students mark attendance using AI face recognition when they arrive.</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-semibold mb-1">Teacher QR Generation</h3>
-                        <p className="text-muted-foreground">Teachers generate unique QR codes for their classes and subjects.</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <span className="font-bold text-primary">3</span>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-1">Face Recognition</h3>
-                        <p className="text-muted-foreground">Students mark attendance using AI face recognition when they arrive.</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <span className="font-bold text-primary">4</span>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-1">Attendance Tracking</h3>
-                        <p className="text-muted-foreground">The system automatically records and tracks attendance data.</p>
+                      
+                      <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <span className="font-bold text-primary">4</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold mb-1">Attendance Tracking</h3>
+                          <p className="text-muted-foreground">The system automatically records and tracks attendance data.</p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                
-                <div className="order-first md:order-last">
-                  <div className="relative rounded-xl overflow-hidden aspect-video">
-                    <img src="/placeholder.svg" alt="Face Recognition" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-tr from-black/40 via-black/20 to-transparent flex items-end">
-                      <div className="p-6">
-                        <span className="text-sm text-white/80 bg-black/30 px-2 py-1 rounded-full">
-                          Face Recognition in Action
-                        </span>
-                      </div>
+                  
+                  <div className="order-first md:order-last">
+                    <div className="relative rounded-xl overflow-hidden aspect-video">
+                      <img src="/lovable-uploads/43e91292-ab5b-4ed9-b72b-08ba9d1560b4.png" alt="How Face Recognition Works" className="w-full h-full object-cover" />
                     </div>
                   </div>
                 </div>

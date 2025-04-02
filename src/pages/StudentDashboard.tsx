@@ -98,12 +98,12 @@ const StudentDashboard = () => {
             {/* Welcome Section */}
             <motion.div variants={fadeInUp} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold">Welcome, John Doe</h1>
+                <h1 className="text-2xl font-bold">Welcome</h1>
                 <p className="text-muted-foreground">Student ID: STU-12345 | Computer Science, Year 2</p>
               </div>
               <Button onClick={() => setActiveTab('scan')} className="md:w-auto w-full">
-                <QrCode className="mr-2 h-4 w-4" />
-                Scan Attendance QR
+                <Camera className="mr-2 h-4 w-4" />
+                Mark Attendance
               </Button>
             </motion.div>
             

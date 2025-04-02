@@ -74,13 +74,13 @@ const Index = () => {
               
               <motion.div 
                 variants={fadeInUp}
-                className="relative hidden lg:block"
+                className="relative lg:block"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent rounded-3xl"></div>
                 <img 
-                  src="/placeholder.svg" 
-                  alt="AI Attendance System" 
-                  className="w-full h-auto rounded-3xl shadow-lg"
+                  src="/lovable-uploads/379f6027-f60c-4610-9140-4c4bc06d3fd6.png" 
+                  alt="Face Recognition Attendance System" 
+                  className="w-full h-auto rounded-3xl shadow-lg object-cover"
                 />
               </motion.div>
             </motion.div>
