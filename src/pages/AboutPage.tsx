@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Camera, Check, QrCode, BarChart4, ShieldCheck, Users } from 'lucide-react';
@@ -239,7 +238,7 @@ const AboutPage = () => {
                 <div className="order-first lg:order-last">
                   <div className="relative rounded-xl overflow-hidden aspect-square">
                     <img 
-                      src="/lovable-uploads/35d1030f-80da-44af-9bdb-e17e5adfaea8.png" 
+                      src="/lovable-uploads/f91a0028-29bf-4af3-a2fe-82fee6f7a157.png" 
                       alt="OpenCV AI Technology" 
                       className="w-full h-full object-cover" 
                     />

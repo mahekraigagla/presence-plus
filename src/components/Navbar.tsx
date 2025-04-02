@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Menu, X, User, LogOut, Home, QrCode, FileText, Users, ChevronDown, Info, Phone, Camera } from 'lucide-react';
@@ -37,34 +36,6 @@ const Navbar = ({ userRole }: NavbarProps) => {
   const getIsActive = (path: string) => {
     return location.pathname === path;
   };
-
-  // Get current user info from localStorage
-  const getCurrentUserName = () => {
-    const currentStudent = localStorage.getItem('currentStudent');
-    const currentTeacher = localStorage.getItem('currentTeacher');
-    
-    if (currentStudent) {
-      try {
-        const student = JSON.parse(currentStudent);
-        return student.fullName;
-      } catch (e) {
-        return null;
-      }
-    }
-    
-    if (currentTeacher) {
-      try {
-        const teacher = JSON.parse(currentTeacher);
-        return teacher.fullName;
-      } catch (e) {
-        return null;
-      }
-    }
-    
-    return null;
-  };
-  
-  const userName = getCurrentUserName();
   
   return (
     <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-background/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-800">
@@ -73,13 +44,6 @@ const Navbar = ({ userRole }: NavbarProps) => {
           <Link to="/" className="flex items-center space-x-2">
             <span className="font-bold text-xl sm:text-2xl bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">Presence+</span>
           </Link>
-          
-          {userName && (
-            <div className="hidden md:flex items-center border-l border-gray-300 dark:border-gray-700 pl-4 ml-2">
-              <span className="text-sm text-muted-foreground">Welcome, </span>
-              <span className="text-sm font-medium ml-1">{userName}</span>
-            </div>
-          )}
         </div>
         
         <div className="hidden md:flex items-center space-x-1">
@@ -295,7 +259,7 @@ const Navbar = ({ userRole }: NavbarProps) => {
             </div>
           ) : (
             <div className="flex items-center space-x-2">
-              <Button onClick={() => navigate('/login')} variant="outline">
+              <Button onClick={() => navigate('/login')} variant="default">
                 Sign In
               </Button>
               <Button onClick={() => navigate('/signup')} variant="default">
@@ -312,17 +276,9 @@ const Navbar = ({ userRole }: NavbarProps) => {
         </div>
       </div>
       
-      {/* Mobile menu */}
       {isMenuOpen && (
         <div className="md:hidden animate-fade-in bg-background/95 dark:bg-gray-900/95 backdrop-blur-sm">
           <div className="px-4 pt-2 pb-6 space-y-3">
-            {userName && (
-              <div className="flex items-center py-2 border-b border-gray-200 dark:border-gray-800 mb-2">
-                <User className="h-5 w-5 text-primary mr-2" />
-                <span className="text-sm font-medium">{userName}</span>
-              </div>
-            )}
-            
             <Link 
               to="/" 
               className="flex items-center py-2 text-base font-medium text-foreground hover:text-primary"
@@ -467,7 +423,7 @@ const Navbar = ({ userRole }: NavbarProps) => {
                     setIsMenuOpen(false);
                   }} 
                   className="w-full"
-                  variant="outline"
+                  variant="default"
                 >
                   Sign In
                 </Button>
@@ -477,6 +433,7 @@ const Navbar = ({ userRole }: NavbarProps) => {
                     setIsMenuOpen(false);
                   }} 
                   className="w-full"
+                  variant="default"
                 >
                   Sign Up
                 </Button>
