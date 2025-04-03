@@ -18,6 +18,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { supabase } from '@/integrations/supabase/client';
 
 const subjectSchema = z.object({
   name: z.string().min(1, "Subject name is required"),
@@ -44,6 +45,7 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
   const [step, setStep] = useState<'form' | 'saving'>('form');
   const [progress, setProgress] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
+  const [duplicateAccount, setDuplicateAccount] = useState(false);
   const { toast } = useToast();
   
   const form = useForm<SignupFormValues>({
@@ -75,35 +77,117 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
     }
   };
 
-  const handleSubmit = (values: SignupFormValues) => {
-    setStep('saving');
-    
-    let progressValue = 0;
-    const interval = setInterval(() => {
-      progressValue += 5;
-      setProgress(progressValue);
+  const handleSubmit = async (values: SignupFormValues) => {
+    try {
+      console.log("Checking if account already exists...");
+      const { data: existingStudents, error: studentCheckError } = await supabase
+        .from('students')
+        .select('id, email')
+        .eq('email', values.email);
       
-      if (progressValue >= 100) {
-        clearInterval(interval);
+      if (studentCheckError) {
+        console.error("Error checking existing students:", studentCheckError);
+        throw studentCheckError;
+      }
+      
+      const { data: existingTeachers, error: teacherCheckError } = await supabase
+        .from('teachers')
+        .select('id, email')
+        .eq('email', values.email);
+      
+      if (teacherCheckError) {
+        console.error("Error checking existing teachers:", teacherCheckError);
+        throw teacherCheckError;
+      }
+      
+      console.log("Existing students:", existingStudents);
+      console.log("Existing teachers:", existingTeachers);
+      
+      if ((existingStudents && existingStudents.length > 0) || 
+          (existingTeachers && existingTeachers.length > 0)) {
+        setDuplicateAccount(true);
+        toast({
+          title: "Account already exists",
+          description: "An account with this email already exists. Please log in instead.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setDuplicateAccount(false);
+      setStep('saving');
+      
+      let progressValue = 0;
+      const interval = setInterval(() => {
+        progressValue += 5;
+        setProgress(progressValue);
         
-        // Store in localStorage for demo purposes
-        const existingTeachers = JSON.parse(localStorage.getItem('teachers') || '[]');
-        const newTeacher = {
-          ...values,
-          id: Date.now().toString(),
-        };
+        if (progressValue >= 100) {
+          clearInterval(interval);
+          completeSignup(values);
+        }
+      }, 50);
+    } catch (error) {
+      console.error("Error checking existing account:", error);
+      toast({
+        title: "Error",
+        description: "Could not verify account. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const completeSignup = async (values: SignupFormValues) => {
+    try {
+      console.log("Creating user with Supabase Auth...");
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+      });
+      
+      if (authError) {
+        console.error("Auth error:", authError);
+        throw authError;
+      }
+      
+      console.log("Auth data:", authData);
+      
+      if (authData.user) {
+        console.log("Inserting teacher record...");
+        const { error: teacherError } = await supabase
+          .from('teachers')
+          .insert([{
+            user_id: authData.user.id,
+            full_name: values.fullName,
+            email: values.email,
+            department: values.subjects[0].division.split('-')[0] // Extract department from division
+          }]);
+          
+        if (teacherError) {
+          console.error("Teacher insert error:", teacherError);
+          throw teacherError;
+        }
         
-        localStorage.setItem('teachers', JSON.stringify([...existingTeachers, newTeacher]));
-        localStorage.setItem('currentTeacher', JSON.stringify(newTeacher));
+        console.log("Teacher record created successfully");
+        
+        await supabase.auth.signOut();
         
         toast({
           title: "Registration successful",
-          description: "Your teacher account has been created.",
+          description: "Your account has been created. Please log in to continue.",
         });
         
         onComplete(values);
       }
-    }, 50);
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      toast({
+        title: "Registration Failed",
+        description: error.message || "An error occurred during registration.",
+        variant: "destructive"
+      });
+      setStep('form');
+    }
   };
 
   const formVariants = {
@@ -144,6 +228,29 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
       </CardHeader>
       
       <CardContent className="relative p-6 pt-6">
+        {duplicateAccount && (
+          <div className="p-4 mb-6 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+            <div className="flex gap-3">
+              <div className="text-amber-600 dark:text-amber-400 mt-0.5">
+                <UserCheck className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="font-medium text-amber-800 dark:text-amber-300">Account already exists</h4>
+                <p className="text-sm text-amber-700 dark:text-amber-400 mt-0.5">
+                  An account with this email already exists. Please log in instead.
+                </p>
+                <Button 
+                  variant="outline" 
+                  className="mt-3 bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300 dark:bg-amber-800/30 dark:hover:bg-amber-800/50 dark:text-amber-300 dark:border-amber-700"
+                  onClick={onCancel}
+                >
+                  Go to Login
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {step === 'form' ? (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5">

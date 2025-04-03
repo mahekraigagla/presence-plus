@@ -14,6 +14,7 @@ const FaceVerificationPage = () => {
   
   const lectureId = searchParams.get('lecture') || '';
   const timestamp = searchParams.get('timestamp') || '';
+  const studentId = searchParams.get('studentId') || '';
   
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -42,6 +43,7 @@ const FaceVerificationPage = () => {
             classId={classId}
             lectureId={lectureId}
             timestamp={timestamp}
+            studentId={studentId}
           />
         </div>
       </main>

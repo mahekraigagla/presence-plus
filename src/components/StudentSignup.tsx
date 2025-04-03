@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
@@ -8,7 +9,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
-import { UserCheck, Save, Camera, RefreshCw, Eye, EyeOff, GraduationCap, User, CreditCard, KeyRound, School } from 'lucide-react';
+import { UserCheck, RefreshCw, Eye, EyeOff, GraduationCap, User, CreditCard, KeyRound, School, Camera } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
@@ -90,14 +91,20 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.autoplay = true;
+        videoRef.current.playsInline = true;
         
         videoRef.current.onloadedmetadata = () => {
           if (videoRef.current) {
-            videoRef.current.play().catch(err => {
-              console.error("Error playing video:", err);
-              setFaceError('Error starting video stream. Please check camera permissions.');
-            });
-            setIsCapturing(true);
+            videoRef.current.play()
+              .then(() => {
+                console.log("Video playback started successfully");
+                setIsCapturing(true);
+              })
+              .catch(err => {
+                console.error("Error playing video:", err);
+                setFaceError('Error starting video stream. Please check camera permissions.');
+              });
           }
         };
       } else {
@@ -177,6 +184,8 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   };
 
   const detectFace = (imageData: string) => {
+    // In a real application, we would use a face detection library here
+    // For now, we'll just simulate success
     setFaceDetected(true);
     setFaceError('');
   };
@@ -192,19 +201,29 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
 
   const handleFormSubmit = async (values: SignupFormValues) => {
     try {
+      console.log("Checking if account already exists...");
       const { data: existingStudents, error: studentCheckError } = await supabase
         .from('students')
         .select('id, email')
         .eq('email', values.email);
       
-      if (studentCheckError) throw studentCheckError;
+      if (studentCheckError) {
+        console.error("Error checking existing students:", studentCheckError);
+        throw studentCheckError;
+      }
       
       const { data: existingTeachers, error: teacherCheckError } = await supabase
         .from('teachers')
         .select('id, email')
         .eq('email', values.email);
       
-      if (teacherCheckError) throw teacherCheckError;
+      if (teacherCheckError) {
+        console.error("Error checking existing teachers:", teacherCheckError);
+        throw teacherCheckError;
+      }
+      
+      console.log("Existing students:", existingStudents);
+      console.log("Existing teachers:", existingTeachers);
       
       if ((existingStudents && existingStudents.length > 0) || 
           (existingTeachers && existingTeachers.length > 0)) {
@@ -257,14 +276,21 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
     try {
       if (!formData || faceImages.length === 0) return;
       
+      console.log("Creating user with Supabase Auth...");
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       });
       
-      if (authError) throw authError;
+      if (authError) {
+        console.error("Auth error:", authError);
+        throw authError;
+      }
+      
+      console.log("Auth data:", authData);
       
       if (authData.user) {
+        console.log("Inserting student record...");
         const { error: studentError } = await supabase
           .from('students')
           .insert([{
@@ -278,7 +304,12 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
             face_registered: true
           }]);
           
-        if (studentError) throw studentError;
+        if (studentError) {
+          console.error("Student insert error:", studentError);
+          throw studentError;
+        }
+        
+        console.log("Student record created successfully");
         
         await supabase.auth.signOut();
         

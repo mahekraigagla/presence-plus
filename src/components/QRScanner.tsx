@@ -39,11 +39,26 @@ const QRScanner: React.FC<QRScannerProps> = ({ onClose, studentId }) => {
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setIsScanning(true);
+        videoRef.current.autoplay = true;
+        videoRef.current.playsInline = true;
         
-        // Start the scanning process
-        startScanningQRCode();
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current) {
+            videoRef.current.play()
+              .then(() => {
+                console.log("QR scanner video started successfully");
+                setIsScanning(true);
+                
+                // Start the scanning process
+                startScanningQRCode();
+              })
+              .catch(err => {
+                console.error("Error playing QR scanner video:", err);
+                setCameraError("Could not start video stream. Please check your permissions.");
+                setIsScanning(false);
+              });
+          }
+        };
       }
     } catch (error) {
       console.error("Camera access error:", error);
@@ -166,9 +181,17 @@ const QRScanner: React.FC<QRScannerProps> = ({ onClose, studentId }) => {
       description: "Successfully scanned attendance QR code"
     });
     
-    // Navigate to face verification page
-    const { classId, lectureId, timestamp } = validation;
-    navigate(`/face-verification/${classId}?lecture=${lectureId}&timestamp=${timestamp}`);
+    // Navigate to face verification page with student ID
+    if (studentId) {
+      const { classId, lectureId, timestamp } = validation as any;
+      navigate(`/face-verification/${classId}?lecture=${lectureId}&timestamp=${timestamp}&studentId=${studentId}`);
+    } else {
+      toast({
+        title: "Error",
+        description: "Student ID not found. Please login again.",
+        variant: "destructive"
+      });
+    }
     
     // Close the scanner dialog
     onClose();
