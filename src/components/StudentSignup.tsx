@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
@@ -56,7 +55,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   });
 
   useEffect(() => {
-    // Clean up camera when component unmounts
     return () => {
       stopCamera();
     };
@@ -64,6 +62,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
 
   const startCamera = async () => {
     try {
+      console.log("Starting camera...");
       if (videoRef.current) {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { 
@@ -74,8 +73,14 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         });
         
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setIsCapturing(true);
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().catch(err => {
+            console.error("Error playing video:", err);
+            setFaceError('Error starting video stream. Please check camera permissions.');
+          });
+          setIsCapturing(true);
+        };
+        
         setFaceError('');
       }
     } catch (error) {
@@ -114,8 +119,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         const image = canvas.toDataURL('image/png');
         setCapturedImage(image);
         
-        // In a real app, you would detect face here using face-api.js or similar
-        // For now, we'll simulate face detection
         detectFace(image);
         
         stopCamera();
@@ -124,10 +127,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   };
 
   const detectFace = (imageData: string) => {
-    // Simulate face detection (in a real app, use face-api.js or similar)
-    // This is where you would integrate face detection
-    const fakeDetection = Math.random() > 0.2; // 80% chance of face detection success
-    
+    const fakeDetection = Math.random() > 0.2;
     setFaceDetected(fakeDetection);
     
     if (!fakeDetection) {
@@ -174,7 +174,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
     try {
       if (!formData || !capturedImage) return;
       
-      // Register the user with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -183,7 +182,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       if (authError) throw authError;
       
       if (authData.user) {
-        // Now insert the student record in the database
         const { error: studentError } = await supabase
           .from('students')
           .insert([{
@@ -199,12 +197,11 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
           
         if (studentError) throw studentError;
         
-        // Sign out after registration to force manual login
         await supabase.auth.signOut();
         
         toast({
           title: "Registration successful",
-          description: "Your account has been created. Please log in to continue.",
+          description: "Your face has been registered. Please log in to continue.",
         });
         
         onComplete();

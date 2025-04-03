@@ -1,34 +1,34 @@
 
-import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Camera, X, QrCode, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { motion } from 'framer-motion';
+import { X, Camera, QrCode, ScanLine, CameraOff, RefreshCw } from 'lucide-react';
 
 interface QRScannerProps {
   onClose: () => void;
+  studentId?: string;
 }
 
-const QRScanner: React.FC<QRScannerProps> = ({ onClose }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const QRScanner: React.FC<QRScannerProps> = ({ onClose, studentId }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState('');
-  const [scannedData, setScannedData] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [scanProgress, setScanProgress] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
-  const startCamera = async () => {
+  const startScanner = async () => {
     try {
       setScanError('');
+      setCameraError(null);
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'environment',
@@ -41,195 +41,291 @@ const QRScanner: React.FC<QRScannerProps> = ({ onClose }) => {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         setIsScanning(true);
-        scanQRCode();
+        
+        // Start the scanning process
+        startScanningQRCode();
       }
     } catch (error) {
-      console.error("Error accessing camera:", error);
-      setScanError('Could not access camera. Please check permissions or try a different browser.');
+      console.error("Camera access error:", error);
+      let errorMessage = "Could not access camera. Please check your permissions.";
+      
+      if (error instanceof DOMException) {
+        if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+          errorMessage = "No camera found on your device.";
+        } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+          errorMessage = "Camera access denied. Please allow camera access.";
+        } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+          errorMessage = "Camera already in use. Close other apps that might be using it.";
+        }
+      }
+      
+      setCameraError(errorMessage);
       toast({
         title: "Camera Error",
-        description: "Could not access camera. Please check permissions or try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     }
   };
 
-  const stopCamera = () => {
+  const stopScanner = () => {
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       const tracks = stream.getTracks();
       
       tracks.forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-      setIsScanning(false);
     }
+    
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    
+    setScanProgress(0);
+    setIsScanning(false);
   };
 
-  const scanQRCode = async () => {
-    if (!isScanning) return;
-    
-    // In a real implementation, you'd use a QR code scanning library like jsQR
-    // For this example, we'll simulate a successful scan after a short delay
-    
-    setTimeout(() => {
-      if (!isScanning) return;
+  const validateQRData = (qrData: string) => {
+    try {
+      // QR format: {"classId":"123","lectureId":"456","timestamp":"2023-01-01T10:00:00Z"}
+      const data = JSON.parse(qrData);
       
-      // Simulate QR code data (in a real app, this would come from jsQR)
-      const mockQRData = {
-        classId: 'cs101',
-        lecture: 'lecture-5',
-        timestamp: new Date().toISOString(),
-        lat: '40.7128',
-        lng: '-74.0060'
+      if (!data.classId || !data.lectureId) {
+        return { valid: false, error: "Invalid QR code format" };
+      }
+      
+      return { 
+        valid: true, 
+        classId: data.classId,
+        lectureId: data.lectureId,
+        timestamp: data.timestamp || new Date().toISOString()
       };
-      
-      const qrUrl = `/attendance/${mockQRData.classId}?lecture=${mockQRData.lecture}&timestamp=${mockQRData.timestamp}&lat=${mockQRData.lat}&lng=${mockQRData.lng}`;
-      
-      setScannedData(qrUrl);
-      stopCamera();
-      
-      toast({
-        title: "QR Code Scanned",
-        description: "Successfully scanned attendance QR code.",
-      });
-    }, 3000);
-    
-    // In a real implementation with jsQR, you'd do something like:
-    // 
-    // const checkQRInterval = setInterval(() => {
-    //   if (!canvasRef.current || !videoRef.current || !isScanning) {
-    //     clearInterval(checkQRInterval);
-    //     return;
-    //   }
-    // 
-    //   const canvas = canvasRef.current;
-    //   const video = videoRef.current;
-    //   const context = canvas.getContext('2d');
-    // 
-    //   if (context && video.readyState === video.HAVE_ENOUGH_DATA) {
-    //     canvas.height = video.videoHeight;
-    //     canvas.width = video.videoWidth;
-    //     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    // 
-    //     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    //     const code = jsQR(imageData.data, imageData.width, imageData.height);
-    // 
-    //     if (code) {
-    //       clearInterval(checkQRInterval);
-    //       setScannedData(code.data);
-    //       stopCamera();
-    //     }
-    //   }
-    // }, 100);
-  };
-
-  const handleProceed = () => {
-    if (scannedData) {
-      navigate(scannedData);
+    } catch (e) {
+      return { valid: false, error: "Could not parse QR code data" };
     }
   };
+
+  const startScanningQRCode = () => {
+    if (!canvasRef.current || !videoRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) return;
+    
+    // This is where you would typically integrate a QR scanner library
+    // For this demo, we'll simulate finding a QR code after a short delay
+    
+    // Reset progress
+    setScanProgress(0);
+    
+    // Simulate scanning progress
+    scanIntervalRef.current = setInterval(() => {
+      setScanProgress((prev) => {
+        const newProgress = prev + 5;
+        
+        // When progress reaches 100%, simulate finding a QR code
+        if (newProgress >= 100) {
+          clearInterval(scanIntervalRef.current!);
+          
+          // Simulate QR code data
+          const qrData = JSON.stringify({
+            classId: "CS101",
+            lectureId: "L001",
+            timestamp: new Date().toISOString()
+          });
+          
+          processQRCode(qrData);
+          return 100;
+        }
+        
+        return newProgress;
+      });
+    }, 150);
+  };
+
+  const processQRCode = (qrData: string) => {
+    const validation = validateQRData(qrData);
+    
+    if (!validation.valid) {
+      setScanError(validation.error || "Invalid QR code");
+      toast({
+        title: "Invalid QR Code",
+        description: validation.error || "Could not recognize the QR code format",
+        variant: "destructive"
+      });
+      
+      // Stop scanning but don't close the dialog, allow retry
+      stopScanner();
+      return;
+    }
+    
+    // Successful scan
+    stopScanner();
+    toast({
+      title: "QR Code Scanned",
+      description: "Successfully scanned attendance QR code"
+    });
+    
+    // Navigate to face verification page
+    const { classId, lectureId, timestamp } = validation;
+    navigate(`/face-verification/${classId}?lecture=${lectureId}&timestamp=${timestamp}`);
+    
+    // Close the scanner dialog
+    onClose();
+  };
+
+  const retryScanning = () => {
+    setScanError('');
+    startScanner();
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopScanner();
+    };
+  }, []);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-    >
-      <Card className="w-full max-w-md bg-white dark:bg-gray-800 shadow-xl">
-        <CardHeader className="relative border-b">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="absolute right-4 top-4" 
-            onClick={onClose}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-          <CardTitle className="flex items-center gap-2">
-            <QrCode className="h-5 w-5" />
-            QR Code Scanner
-          </CardTitle>
-          <CardDescription>
-            Scan the QR code displayed by your teacher to mark attendance
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent className="p-6">
-          <div className="space-y-6">
-            <div className="relative aspect-video bg-gray-100 dark:bg-gray-900 rounded-md overflow-hidden">
-              {isScanning ? (
-                <>
-                  <video 
-                    ref={videoRef} 
-                    className="w-full h-full object-cover"
-                    muted 
-                    playsInline
-                  />
-                  <div className="absolute inset-0 border-2 border-white/30 border-dashed rounded-md"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-48 h-48 border-2 border-primary animate-pulse rounded-md"></div>
-                  </div>
-                </>
-              ) : scannedData ? (
-                <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-green-50 dark:bg-green-900/20">
-                  <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-                  <p className="text-green-700 dark:text-green-300 font-medium text-center">
-                    QR code successfully scanned!
-                  </p>
-                </div>
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center p-6">
-                  <QrCode className="h-16 w-16 text-gray-300 dark:text-gray-600 mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400 text-center text-sm">
-                    Camera preview will appear here. Please enable camera access when prompted.
-                  </p>
-                </div>
-              )}
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="w-full max-w-lg"
+      >
+        <Card className="border-0 shadow-xl overflow-hidden">
+          <div className="flex justify-between items-center p-4 border-b">
+            <div className="flex items-center space-x-2">
+              <QrCode className="h-5 w-5 text-primary" />
+              <h3 className="font-semibold text-lg">Scan Attendance QR Code</h3>
             </div>
-            
-            <canvas ref={canvasRef} className="hidden" />
-            
-            {scanError && (
-              <div className="p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                <p className="text-sm">{scanError}</p>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => {
+                stopScanner();
+                onClose();
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <CardContent className="p-0">
+            <div className="relative">
+              {/* Camera preview */}
+              <div className="aspect-video bg-gray-900 relative overflow-hidden">
+                {isScanning ? (
+                  <div className="relative w-full h-full">
+                    <video
+                      ref={videoRef}
+                      className="w-full h-full object-cover"
+                      muted
+                      playsInline
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-64 h-64 border-2 border-white/80 rounded-lg relative">
+                        {/* Scan animation */}
+                        <motion.div
+                          className="absolute left-0 right-0 h-0.5 bg-primary"
+                          initial={{ y: 0 }}
+                          animate={{ 
+                            y: [0, 256, 0],
+                          }}
+                          transition={{
+                            duration: 2,
+                            repeat: Infinity,
+                            ease: "linear"
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : scanError ? (
+                  <div className="flex flex-col items-center justify-center h-full p-6 space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+                      <QrCode className="h-8 w-8 text-red-600" />
+                    </div>
+                    <div className="text-center space-y-2">
+                      <p className="text-red-600 font-semibold text-lg">Scan Failed</p>
+                      <p className="text-gray-400 text-sm">{scanError}</p>
+                    </div>
+                  </div>
+                ) : cameraError ? (
+                  <div className="flex flex-col items-center justify-center h-full p-6 space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+                      <CameraOff className="h-8 w-8 text-red-600" />
+                    </div>
+                    <div className="text-center space-y-2">
+                      <p className="text-red-600 font-semibold text-lg">Camera Error</p>
+                      <p className="text-gray-400 text-sm">{cameraError}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full p-6">
+                    <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center mb-4">
+                      <Camera className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <p className="text-gray-400 text-center">
+                      Camera preview will appear here.<br />Click "Start Scanning" below.
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-            
-            <div className="space-y-2">
-              {!scannedData ? (
-                <Button 
-                  className="w-full bg-primary" 
-                  onClick={startCamera}
-                  disabled={isScanning}
-                >
-                  <Camera className="mr-2 h-4 w-4" />
-                  {isScanning ? 'Scanning...' : 'Start Camera'}
-                </Button>
-              ) : (
-                <Button 
-                  className="w-full bg-primary" 
-                  onClick={handleProceed}
-                >
-                  Proceed to Mark Attendance
-                </Button>
-              )}
+              
+              {/* Hidden canvas for image processing */}
+              <canvas ref={canvasRef} className="hidden" width="640" height="480" />
               
               {isScanning && (
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={stopCamera}
-                >
-                  Cancel Scanning
-                </Button>
+                <div className="p-4 border-t">
+                  <div className="flex items-center">
+                    <ScanLine className="animate-pulse h-5 w-5 mr-2 text-primary" />
+                    <span className="text-sm font-medium mr-2">Scanning</span>
+                    <span className="text-xs text-muted-foreground">{scanProgress}%</span>
+                  </div>
+                  <Progress value={scanProgress} className="h-2 mt-2" />
+                </div>
               )}
+              
+              {/* Control buttons */}
+              <div className="p-4 flex justify-center space-x-3">
+                {isScanning ? (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      stopScanner();
+                    }}
+                  >
+                    Cancel Scanning
+                  </Button>
+                ) : (
+                  <>
+                    {(scanError || cameraError) ? (
+                      <Button 
+                        onClick={retryScanning}
+                        className="bg-primary text-primary-foreground"
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Try Again
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={startScanner}
+                        className="bg-primary text-primary-foreground"
+                      >
+                        <Camera className="mr-2 h-4 w-4" />
+                        Start Scanning
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
   );
 };
 

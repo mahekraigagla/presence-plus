@@ -24,9 +24,11 @@ const StudentDashboard = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        console.log("Checking authentication status...");
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!session) {
+          console.log("No session found, redirecting to login");
           toast({
             title: "Authentication required",
             description: "Please login to access the dashboard",
@@ -35,6 +37,8 @@ const StudentDashboard = () => {
           navigate('/login');
           return;
         }
+        
+        console.log("Session found, fetching student profile for user ID:", session.user.id);
         
         // Get student profile
         const { data: studentData, error: studentError } = await supabase
@@ -54,6 +58,7 @@ const StudentDashboard = () => {
           return;
         }
         
+        console.log("Student profile found:", studentData);
         setStudent(studentData);
         
         // Check if student has any attendance records
@@ -66,6 +71,7 @@ const StudentDashboard = () => {
         if (attendanceError) {
           console.error("Error checking attendance records:", attendanceError);
         } else {
+          console.log("Attendance records check:", attendanceData);
           setHasAttendanceRecords(attendanceData && attendanceData.length > 0);
         }
       } catch (error) {
@@ -79,6 +85,7 @@ const StudentDashboard = () => {
     
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event);
       if (event === 'SIGNED_OUT') {
         navigate('/login');
       }
@@ -113,7 +120,7 @@ const StudentDashboard = () => {
       <Navbar userRole="student" />
       
       {showQRScanner && (
-        <QRScanner onClose={() => setShowQRScanner(false)} />
+        <QRScanner onClose={() => setShowQRScanner(false)} studentId={student?.id} />
       )}
       
       <main className="flex-grow pt-20 pb-10">
