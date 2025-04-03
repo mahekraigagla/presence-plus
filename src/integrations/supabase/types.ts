@@ -9,7 +9,186 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      attendance_records: {
+        Row: {
+          class_id: string
+          id: string
+          lecture_id: string
+          status: string
+          student_id: string
+          timestamp: string | null
+          verification_method: string
+        }
+        Insert: {
+          class_id: string
+          id?: string
+          lecture_id: string
+          status?: string
+          student_id: string
+          timestamp?: string | null
+          verification_method: string
+        }
+        Update: {
+          class_id?: string
+          id?: string
+          lecture_id?: string
+          status?: string
+          student_id?: string
+          timestamp?: string | null
+          verification_method?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classes: {
+        Row: {
+          created_at: string | null
+          department: string
+          id: string
+          name: string
+          teacher_id: string
+          year: string
+        }
+        Insert: {
+          created_at?: string | null
+          department: string
+          id?: string
+          name: string
+          teacher_id: string
+          year: string
+        }
+        Update: {
+          created_at?: string | null
+          department?: string
+          id?: string
+          name?: string
+          teacher_id?: string
+          year?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classes_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lectures: {
+        Row: {
+          class_id: string
+          created_at: string | null
+          date: string | null
+          id: string
+          qr_code: string | null
+          title: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string | null
+          date?: string | null
+          id?: string
+          qr_code?: string | null
+          title: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string | null
+          date?: string | null
+          id?: string
+          qr_code?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lectures_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      students: {
+        Row: {
+          created_at: string | null
+          department: string
+          email: string
+          face_image: string | null
+          face_registered: boolean | null
+          full_name: string
+          id: string
+          roll_number: string
+          updated_at: string | null
+          user_id: string
+          year: string
+        }
+        Insert: {
+          created_at?: string | null
+          department: string
+          email: string
+          face_image?: string | null
+          face_registered?: boolean | null
+          full_name: string
+          id?: string
+          roll_number: string
+          updated_at?: string | null
+          user_id: string
+          year: string
+        }
+        Update: {
+          created_at?: string | null
+          department?: string
+          email?: string
+          face_image?: string | null
+          face_registered?: boolean | null
+          full_name?: string
+          id?: string
+          roll_number?: string
+          updated_at?: string | null
+          user_id?: string
+          year?: string
+        }
+        Relationships: []
+      }
+      teachers: {
+        Row: {
+          created_at: string | null
+          department: string
+          email: string
+          full_name: string
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          department: string
+          email: string
+          full_name: string
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          department?: string
+          email?: string
+          full_name?: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

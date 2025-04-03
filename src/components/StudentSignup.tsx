@@ -1,24 +1,18 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { UserCheck, Save, ArrowRight, BookOpen, School, User, UserCircle, KeyRound, GraduationCap, CreditCard, Eye, EyeOff } from 'lucide-react';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { UserCheck, Save, Camera, RefreshCw, Eye, EyeOff, GraduationCap, User, CreditCard, KeyRound, School } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from '@/integrations/supabase/client';
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
@@ -32,14 +26,21 @@ const signupSchema = z.object({
 type SignupFormValues = z.infer<typeof signupSchema>;
 
 interface StudentSignupProps {
-  onComplete: (studentData: SignupFormValues) => void;
+  onComplete: () => void;
   onCancel: () => void;
 }
 
 const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) => {
-  const [step, setStep] = useState<'form' | 'saving'>('form');
+  const [step, setStep] = useState<'form' | 'face-registration' | 'saving'>('form');
   const [progress, setProgress] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState<SignupFormValues | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [faceError, setFaceError] = useState('');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
   
   const form = useForm<SignupFormValues>({
@@ -54,9 +55,109 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
     },
   });
 
-  const handleSubmit = (values: SignupFormValues) => {
-    setStep('saving');
+  useEffect(() => {
+    // Clean up camera when component unmounts
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      if (videoRef.current) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: "user",
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          }
+        });
+        
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+        setIsCapturing(true);
+        setFaceError('');
+      }
+    } catch (error) {
+      console.error("Error accessing camera:", error);
+      setFaceError('Unable to access camera. Please check your permissions and try again.');
+      toast({
+        title: "Camera Error",
+        description: "Could not access your camera. Check your browser permissions.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      const tracks = stream.getTracks();
+      
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+      setIsCapturing(false);
+    }
+  };
+
+  const captureImage = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const image = canvas.toDataURL('image/png');
+        setCapturedImage(image);
+        
+        // In a real app, you would detect face here using face-api.js or similar
+        // For now, we'll simulate face detection
+        detectFace(image);
+        
+        stopCamera();
+      }
+    }
+  };
+
+  const detectFace = (imageData: string) => {
+    // Simulate face detection (in a real app, use face-api.js or similar)
+    // This is where you would integrate face detection
+    const fakeDetection = Math.random() > 0.2; // 80% chance of face detection success
     
+    setFaceDetected(fakeDetection);
+    
+    if (!fakeDetection) {
+      setFaceError('No face detected in the image. Please try again with your face clearly visible.');
+    }
+  };
+
+  const retryCapture = () => {
+    setCapturedImage(null);
+    setFaceDetected(false);
+    setFaceError('');
+    startCamera();
+  };
+
+  const handleFormSubmit = (values: SignupFormValues) => {
+    setFormData(values);
+    setStep('face-registration');
+  };
+
+  const handleFaceRegistrationComplete = async () => {
+    if (!formData || !capturedImage || !faceDetected) {
+      toast({
+        title: "Registration Error",
+        description: "Please complete form and face registration to continue.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setStep('saving');
     let progressValue = 0;
     const interval = setInterval(() => {
       progressValue += 5;
@@ -64,25 +165,59 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       
       if (progressValue >= 100) {
         clearInterval(interval);
+        completeSignup();
+      }
+    }, 50);
+  };
+
+  const completeSignup = async () => {
+    try {
+      if (!formData || !capturedImage) return;
+      
+      // Register the user with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+      });
+      
+      if (authError) throw authError;
+      
+      if (authData.user) {
+        // Now insert the student record in the database
+        const { error: studentError } = await supabase
+          .from('students')
+          .insert([{
+            user_id: authData.user.id,
+            full_name: formData.fullName,
+            roll_number: formData.rollNumber,
+            email: formData.email,
+            department: formData.department,
+            year: formData.year,
+            face_image: capturedImage,
+            face_registered: true
+          }]);
+          
+        if (studentError) throw studentError;
         
-        const existingStudents = JSON.parse(localStorage.getItem('students') || '[]');
-        const newStudent = {
-          ...values,
-          id: Date.now().toString(),
-          faceRegistered: false,
-        };
-        
-        localStorage.setItem('students', JSON.stringify([...existingStudents, newStudent]));
-        localStorage.setItem('currentStudent', JSON.stringify(newStudent));
+        // Sign out after registration to force manual login
+        await supabase.auth.signOut();
         
         toast({
           title: "Registration successful",
-          description: "Your account has been created. Now please register your face.",
+          description: "Your account has been created. Please log in to continue.",
         });
         
-        onComplete(values);
+        onComplete();
       }
-    }, 50);
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      toast({
+        title: "Registration Failed",
+        description: error.message || "An error occurred during registration.",
+        variant: "destructive"
+      });
+      setStep('form');
+    }
   };
 
   const formVariants = {
@@ -116,16 +251,18 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
           <div className="text-left">
             <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Student Registration</CardTitle>
             <CardDescription className="text-muted-foreground">
-              Create your account to start marking attendance
+              {step === 'form' ? 'Create your account to start marking attendance' : 
+               step === 'face-registration' ? 'Register your face for attendance verification' :
+               'Creating your account...'}
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       
       <CardContent className="relative p-6 pt-6">
-        {step === 'form' ? (
+        {step === 'form' && (
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5">
+            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-5">
               <motion.div 
                 variants={formVariants}
                 initial="hidden"
@@ -304,12 +441,109 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                   className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
                 >
                   <UserCheck className="mr-2 h-4 w-4" />
-                  Register & Continue
+                  Continue to Face Registration
                 </Button>
               </motion.div>
             </form>
           </Form>
-        ) : (
+        )}
+
+        {step === 'face-registration' && (
+          <div className="space-y-6">
+            <div className="text-center mb-4">
+              <h3 className="text-xl font-semibold mb-2">Face Registration</h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                We need to capture your face for attendance verification. Please ensure you're in a well-lit environment and your face is clearly visible.
+              </p>
+            </div>
+            
+            <div className="bg-gray-100 dark:bg-gray-800 aspect-video rounded-lg overflow-hidden relative">
+              {isCapturing ? (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+              ) : capturedImage ? (
+                <div className="relative">
+                  <img 
+                    src={capturedImage} 
+                    alt="Captured face" 
+                    className="w-full h-full object-cover" 
+                  />
+                  {faceDetected && (
+                    <div className="absolute inset-0 border-4 border-green-500 rounded-lg animate-pulse opacity-50"></div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full p-4">
+                  <Camera className="h-16 w-16 text-muted-foreground mb-4" />
+                  <p className="text-center text-muted-foreground">Camera preview will appear here</p>
+                </div>
+              )}
+            </div>
+            
+            {faceError && (
+              <div className="p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 text-sm">
+                {faceError}
+              </div>
+            )}
+            
+            <div className="flex flex-col sm:flex-row gap-3">
+              {isCapturing ? (
+                <Button 
+                  onClick={captureImage}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                >
+                  <Camera className="mr-2 h-4 w-4" />
+                  Capture Image
+                </Button>
+              ) : capturedImage ? (
+                <>
+                  <Button 
+                    variant="outline" 
+                    onClick={retryCapture}
+                    className="flex-1"
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Retake Photo
+                  </Button>
+                  
+                  <Button 
+                    onClick={handleFaceRegistrationComplete}
+                    disabled={!faceDetected}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                  >
+                    <UserCheck className="mr-2 h-4 w-4" />
+                    Complete Registration
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  onClick={startCamera}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                >
+                  <Camera className="mr-2 h-4 w-4" />
+                  Start Camera
+                </Button>
+              )}
+            </div>
+            
+            <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+              <Button 
+                variant="link" 
+                onClick={() => setStep('form')}
+                className="text-muted-foreground"
+              >
+                Back to Form
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        {step === 'saving' && (
           <div className="py-8">
             <motion.div 
               initial={{ scale: 0.8, opacity: 0 }}
@@ -339,6 +573,8 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
           </div>
         )}
       </CardContent>
+      
+      <canvas ref={canvasRef} className="hidden" />
     </Card>
   );
 };

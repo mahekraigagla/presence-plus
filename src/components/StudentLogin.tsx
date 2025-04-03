@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { UserRound, Lock, LogIn, AlertCircle, Fingerprint } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
 
 interface StudentLoginProps {
   onLoginSuccess: () => void;
@@ -15,25 +16,25 @@ interface StudentLoginProps {
 }
 
 const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupClick }) => {
-  const [rollNumber, setRollNumber] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!rollNumber || !password) {
-      setError('Please enter both roll number and password');
+    if (!email || !password) {
+      setError('Please enter both email and password');
       return;
     }
     
     setIsLoading(true);
     setError('');
     
-    // Simulate loading
+    // Progress bar animation
     let progressValue = 0;
     const interval = setInterval(() => {
       progressValue += 10;
@@ -41,36 +42,51 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
       
       if (progressValue >= 100) {
         clearInterval(interval);
-        
-        // Check login credentials from localStorage
-        const students = JSON.parse(localStorage.getItem('students') || '[]');
-        const student = students.find((s: any) => 
-          s.rollNumber === rollNumber && s.password === password
-        );
-        
-        if (student) {
-          // Set current student in localStorage
-          localStorage.setItem('currentStudent', JSON.stringify(student));
-          
-          toast({
-            title: "Login successful",
-            description: `Welcome back, ${student.fullName}!`,
-            // Changed from 'success' to 'default' to fix the TypeScript error
-            variant: "default"
-          });
-          
-          onLoginSuccess();
-        } else {
-          setError('Invalid roll number or password');
-          toast({
-            title: "Login failed",
-            description: "Invalid roll number or password",
-            variant: "destructive"
-          });
-          setIsLoading(false);
-        }
       }
     }, 50);
+    
+    try {
+      // Authenticate with Supabase
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (authError) throw authError;
+      
+      if (data.user) {
+        // Get student details
+        const { data: studentData, error: studentError } = await supabase
+          .from('students')
+          .select('*')
+          .eq('user_id', data.user.id)
+          .single();
+        
+        if (studentError) throw studentError;
+        
+        // Store current student data in localStorage for UI purposes
+        localStorage.setItem('currentStudent', JSON.stringify(studentData));
+        
+        toast({
+          title: "Login successful",
+          description: `Welcome back, ${studentData.full_name}!`,
+          variant: "default"
+        });
+        
+        onLoginSuccess();
+      }
+    } catch (error: any) {
+      setError(error.message || 'Invalid email or password');
+      toast({
+        title: "Login failed",
+        description: error.message || "Invalid email or password",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+      clearInterval(interval);
+      setProgress(0);
+    }
   };
 
   const formVariants = {
@@ -151,16 +167,16 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
               )}
               
               <motion.div variants={itemVariants} className="space-y-2">
-                <Label htmlFor="rollNumber" className="text-gray-700 dark:text-gray-300">Roll Number</Label>
+                <Label htmlFor="email" className="text-gray-700 dark:text-gray-300">Email</Label>
                 <div className="relative">
                   <UserRound className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
-                    id="rollNumber"
-                    type="text"
-                    placeholder="Enter your roll number"
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
                     className="pl-10 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700"
-                    value={rollNumber}
-                    onChange={(e) => setRollNumber(e.target.value)}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
               </motion.div>

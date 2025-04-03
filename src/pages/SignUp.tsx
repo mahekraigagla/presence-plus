@@ -6,17 +6,20 @@ import StudentSignup from '@/components/StudentSignup';
 import TeacherSignup from '@/components/TeacherSignup';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Navbar from '@/components/Navbar';
+import { useToast } from '@/hooks/use-toast';
 
 const SignUp = () => {
   const [activeTab, setActiveTab] = useState<'student' | 'teacher'>('student');
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleStudentSignupComplete = () => {
-    navigate('/student-dashboard');
-  };
-
-  const handleTeacherSignupComplete = () => {
-    navigate('/teacher-dashboard');
+  const handleSignupComplete = () => {
+    // Redirect to login page after signup
+    toast({
+      title: 'Registration Complete',
+      description: 'Your account has been created. Please log in to continue.',
+    });
+    navigate('/login');
   };
 
   return (
@@ -51,14 +54,14 @@ const SignUp = () => {
               
               <TabsContent value="student">
                 <StudentSignup 
-                  onComplete={handleStudentSignupComplete} 
+                  onComplete={handleSignupComplete} 
                   onCancel={() => navigate('/login')}
                 />
               </TabsContent>
               
               <TabsContent value="teacher">
                 <TeacherSignup 
-                  onComplete={handleTeacherSignupComplete} 
+                  onComplete={handleSignupComplete} 
                   onCancel={() => navigate('/login')}
                 />
               </TabsContent>

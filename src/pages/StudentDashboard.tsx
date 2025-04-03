@@ -1,394 +1,223 @@
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Camera, QrCode, Calendar, AlertTriangle, Clock, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { QrCode, Calendar, UserCheck, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import QRScanner from '@/components/QRScanner';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import AttendanceStats from '@/components/AttendanceStats';
-import FaceRecognition from '@/components/FaceRecognition';
+import AttendanceTable from '@/components/AttendanceTable';
 
 const StudentDashboard = () => {
-  const [activeTab, setActiveTab] = useState('overview');
-  
-  // Sample upcoming classes for demo
-  const upcomingClasses = [
-    {
-      id: 1,
-      subject: 'Introduction to Computer Science',
-      time: '09:00 AM - 10:30 AM',
-      room: 'Room 101',
-      teacher: 'Dr. Smith',
-      isNext: true
-    },
-    {
-      id: 2,
-      subject: 'Data Structures and Algorithms',
-      time: '11:00 AM - 12:30 PM',
-      room: 'Room 203',
-      teacher: 'Prof. Johnson',
-      isNext: false
-    },
-    {
-      id: 3,
-      subject: 'Database Systems',
-      time: '02:00 PM - 03:30 PM',
-      room: 'Lab 3',
-      teacher: 'Dr. Williams',
-      isNext: false
-    }
-  ];
-  
-  // Sample recent attendance activities
-  const recentActivities = [
-    {
-      id: 1,
-      subject: 'Web Development',
-      date: 'Today, 08:30 AM',
-      status: 'Present',
-      verificationMethod: 'QR Code + Face'
-    },
-    {
-      id: 2,
-      subject: 'Mobile App Development',
-      date: 'Yesterday, 01:45 PM',
-      status: 'Present',
-      verificationMethod: 'QR Code + Face'
-    },
-    {
-      id: 3,
-      subject: 'Introduction to Computer Science',
-      date: 'Oct 15, 09:15 AM',
-      status: 'Absent',
-      verificationMethod: 'N/A'
-    }
-  ];
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [student, setStudent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasAttendanceRecords, setHasAttendanceRecords] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const fadeInUp = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { 
-        duration: 0.5,
-        ease: [0.22, 1, 0.36, 1]
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          toast({
+            title: "Authentication required",
+            description: "Please login to access the dashboard",
+            variant: "destructive"
+          });
+          navigate('/login');
+          return;
+        }
+        
+        // Get student profile
+        const { data: studentData, error: studentError } = await supabase
+          .from('students')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (studentError || !studentData) {
+          console.error("Error fetching student data:", studentError);
+          toast({
+            title: "Profile not found",
+            description: "Could not find your student profile",
+            variant: "destructive"
+          });
+          navigate('/login');
+          return;
+        }
+        
+        setStudent(studentData);
+        
+        // Check if student has any attendance records
+        const { data: attendanceData, error: attendanceError } = await supabase
+          .from('attendance_records')
+          .select('id')
+          .eq('student_id', studentData.id)
+          .limit(1);
+        
+        if (attendanceError) {
+          console.error("Error checking attendance records:", attendanceError);
+        } else {
+          setHasAttendanceRecords(attendanceData && attendanceData.length > 0);
+        }
+      } catch (error) {
+        console.error("Dashboard error:", error);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
+    
+    checkAuth();
+    
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        navigate('/login');
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [navigate, toast]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar userRole="student" />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const fadeIn = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+  };
+  
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <Navbar userRole="student" />
       
-      <main className="flex-grow pt-24 pb-16">
-        <div className="container mx-auto px-4">
-          <motion.div 
+      {showQRScanner && (
+        <QRScanner onClose={() => setShowQRScanner(false)} />
+      )}
+      
+      <main className="flex-grow pt-20 pb-10">
+        <div className="container px-4 mx-auto">
+          <motion.div
             className="grid grid-cols-1 gap-6"
-            initial="hidden"
-            animate="visible"
+            initial="initial"
+            animate="animate"
             variants={{
-              hidden: { opacity: 0 },
-              visible: { 
+              initial: { opacity: 0 },
+              animate: {
                 opacity: 1,
-                transition: { delayChildren: 0.1, staggerChildren: 0.1 }
+                transition: {
+                  staggerChildren: 0.1
+                }
               }
             }}
           >
-            {/* Welcome Section */}
-            <motion.div variants={fadeInUp} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <motion.div variants={fadeIn} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold">Welcome</h1>
-                <p className="text-muted-foreground">Student ID: STU-12345 | Computer Science, Year 2</p>
+                <h1 className="text-3xl font-bold">Student Dashboard</h1>
+                <p className="text-muted-foreground">Welcome back, {student?.full_name || 'Student'}</p>
               </div>
-              <Button onClick={() => setActiveTab('scan')} className="md:w-auto w-full">
-                <Camera className="mr-2 h-4 w-4" />
-                Mark Attendance
-              </Button>
+              
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button 
+                  onClick={() => setShowQRScanner(true)}
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Scan QR Code
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  onClick={handleLogout}
+                >
+                  Logout
+                </Button>
+              </div>
             </motion.div>
             
-            {/* Main Dashboard Content */}
-            <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <motion.div variants={fadeInUp}>
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="scan">Scan QR</TabsTrigger>
-                  <TabsTrigger value="schedule">Schedule</TabsTrigger>
-                  <TabsTrigger value="history">History</TabsTrigger>
-                </TabsList>
-              </motion.div>
-              
-              {/* Overview Tab */}
-              <TabsContent value="overview" className="space-y-6">
-                <motion.div variants={fadeInUp} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card className="glass dark:glass-dark">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">Attendance Rate</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">87%</div>
-                      <p className="text-xs text-muted-foreground mt-1">48/55 classes attended</p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="glass dark:glass-dark">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">Classes Today</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">3</div>
-                      <p className="text-xs text-muted-foreground mt-1">Next class in 32 minutes</p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="glass dark:glass-dark">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">This Week</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">10/12</div>
-                      <p className="text-xs text-muted-foreground mt-1">Classes attended this week</p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="glass dark:glass-dark">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">Status</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-green-500">Good</div>
-                      <p className="text-xs text-muted-foreground mt-1">Above required threshold</p>
-                    </CardContent>
-                  </Card>
+            {hasAttendanceRecords ? (
+              <Tabs defaultValue="overview" className="w-full">
+                <motion.div variants={fadeIn}>
+                  <TabsList className="grid w-full grid-cols-2 md:w-auto md:inline-grid">
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="history">Attendance History</TabsTrigger>
+                  </TabsList>
                 </motion.div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <motion.div variants={fadeInUp} className="md:col-span-2">
-                    <AttendanceStats role="student" />
+                <TabsContent value="overview" className="mt-6 space-y-6">
+                  <motion.div variants={fadeIn}>
+                    <AttendanceStats studentId={student?.id} />
                   </motion.div>
-                  
-                  <motion.div variants={fadeInUp}>
-                    <Card className="glass dark:glass-dark h-full">
+                </TabsContent>
+                
+                <TabsContent value="history" className="mt-6">
+                  <motion.div variants={fadeIn}>
+                    <Card>
                       <CardHeader>
-                        <CardTitle>Next Class</CardTitle>
-                        <CardDescription>Coming up soon</CardDescription>
+                        <CardTitle className="flex items-center gap-2">
+                          <Calendar className="h-5 w-5 text-muted-foreground" />
+                          Attendance History
+                        </CardTitle>
+                        <CardDescription>
+                          View your past attendance records
+                        </CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        {upcomingClasses.filter(c => c.isNext).map(classItem => (
-                          <div key={classItem.id} className="space-y-2">
-                            <h3 className="font-semibold text-lg">{classItem.subject}</h3>
-                            <div className="flex items-center text-sm text-muted-foreground">
-                              <Clock className="h-4 w-4 mr-2" />
-                              <span>{classItem.time}</span>
-                            </div>
-                            <div className="flex items-center text-sm text-muted-foreground">
-                              <QrCode className="h-4 w-4 mr-2" />
-                              <span>{classItem.room}</span>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              <span>Instructor: {classItem.teacher}</span>
-                            </div>
-                          </div>
-                        ))}
+                      <CardContent>
+                        <AttendanceTable studentId={student?.id} />
                       </CardContent>
-                      <CardFooter>
-                        <Button variant="outline" className="w-full" onClick={() => setActiveTab('schedule')}>
-                          View Full Schedule
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </CardFooter>
                     </Card>
                   </motion.div>
-                </div>
-                
-                <motion.div variants={fadeInUp}>
-                  <Card className="glass dark:glass-dark">
-                    <CardHeader>
-                      <CardTitle>Recent Attendance</CardTitle>
-                      <CardDescription>Your most recent attendance records</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {recentActivities.map(activity => (
-                          <div key={activity.id} className="flex items-center justify-between pb-4 border-b last:border-0 last:pb-0">
-                            <div>
-                              <h4 className="font-medium">{activity.subject}</h4>
-                              <p className="text-sm text-muted-foreground">{activity.date}</p>
-                            </div>
-                            <div className="flex flex-col items-end">
-                              <span className={`font-medium ${activity.status === 'Present' ? 'text-green-500' : 'text-red-500'}`}>
-                                {activity.status}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {activity.verificationMethod}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <motion.div variants={fadeIn}>
+                <Card className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/50">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col md:flex-row gap-4 items-center">
+                      <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-full">
+                        <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
                       </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </TabsContent>
-              
-              {/* Scan QR Tab */}
-              <TabsContent value="scan">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <motion.div variants={fadeInUp} className="space-y-6">
-                    <Card className="glass dark:glass-dark">
-                      <CardHeader>
-                        <CardTitle>Scan QR Code</CardTitle>
-                        <CardDescription>Scan the teacher's QR code to mark your attendance</CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex flex-col items-center justify-center py-10">
-                        <div className="w-full max-w-xs flex flex-col items-center space-y-4">
-                          <div className="p-2 rounded-full bg-primary/10">
-                            <QrCode className="h-12 w-12 text-primary" />
-                          </div>
-                          <p className="text-center text-muted-foreground">Use your camera to scan the QR code displayed by your teacher</p>
-                          <Button className="w-full">
-                            <Camera className="mr-2 h-4 w-4" />
-                            Open QR Scanner
-                          </Button>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="flex justify-between">
-                        <p className="text-xs text-muted-foreground flex items-center">
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          QR codes are only valid for a limited time
+                      <div className="flex-1 text-center md:text-left">
+                        <h3 className="text-lg font-medium text-amber-800 dark:text-amber-300 mb-1">
+                          No attendance records found
+                        </h3>
+                        <p className="text-amber-700 dark:text-amber-400 text-sm">
+                          You haven't marked any attendance yet. Please mark your first attendance to see statistics and history.
                         </p>
-                      </CardFooter>
-                    </Card>
-                  </motion.div>
-                  
-                  <motion.div variants={fadeInUp}>
-                    <FaceRecognition />
-                  </motion.div>
-                </div>
-              </TabsContent>
-              
-              {/* Schedule Tab */}
-              <TabsContent value="schedule">
-                <motion.div variants={fadeInUp} className="space-y-6">
-                  <Card className="glass dark:glass-dark">
-                    <CardHeader>
-                      <CardTitle>Today's Schedule</CardTitle>
-                      <CardDescription>Your classes for today, {new Date().toLocaleDateString()}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {upcomingClasses.map((classItem, index) => (
-                          <div key={classItem.id} className={`p-4 rounded-lg border ${classItem.isNext ? 'bg-primary/5 border-primary/20' : ''}`}>
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
-                              <div>
-                                <h4 className="font-medium">{classItem.subject}</h4>
-                                <p className="text-sm text-muted-foreground">{classItem.room} • {classItem.teacher}</p>
-                              </div>
-                              <div className="flex flex-col items-start md:items-end">
-                                <span className="font-medium">{classItem.time}</span>
-                                {classItem.isNext && (
-                                  <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-                                    Next Class
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
                       </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="glass dark:glass-dark">
-                    <CardHeader>
-                      <CardTitle>Weekly Overview</CardTitle>
-                      <CardDescription>Your class schedule for this week</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-center py-10 text-muted-foreground">
-                        <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                        <p>Weekly calendar view will be displayed here</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </TabsContent>
-              
-              {/* History Tab */}
-              <TabsContent value="history">
-                <motion.div variants={fadeInUp} className="space-y-6">
-                  <Card className="glass dark:glass-dark">
-                    <CardHeader>
-                      <CardTitle>Attendance History</CardTitle>
-                      <CardDescription>Detailed records of your past attendance</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Tabs defaultValue="all" className="w-full">
-                        <TabsList className="grid w-full grid-cols-3 mb-6">
-                          <TabsTrigger value="all">All</TabsTrigger>
-                          <TabsTrigger value="present">Present</TabsTrigger>
-                          <TabsTrigger value="absent">Absent</TabsTrigger>
-                        </TabsList>
-                        
-                        <TabsContent value="all" className="space-y-4">
-                          {[...recentActivities, ...recentActivities].map((activity, index) => (
-                            <div key={index} className="flex items-center justify-between pb-4 border-b last:border-0 last:pb-0">
-                              <div>
-                                <h4 className="font-medium">{activity.subject}</h4>
-                                <p className="text-sm text-muted-foreground">{activity.date}</p>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium 
-                                  ${activity.status === 'Present' 
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                                    : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}
-                                >
-                                  {activity.status}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </TabsContent>
-                        
-                        <TabsContent value="present" className="space-y-4">
-                          {[...recentActivities].filter(a => a.status === 'Present').map((activity, index) => (
-                            <div key={index} className="flex items-center justify-between pb-4 border-b last:border-0 last:pb-0">
-                              <div>
-                                <h4 className="font-medium">{activity.subject}</h4>
-                                <p className="text-sm text-muted-foreground">{activity.date}</p>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                                  Present
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </TabsContent>
-                        
-                        <TabsContent value="absent" className="space-y-4">
-                          {[...recentActivities].filter(a => a.status === 'Absent').map((activity, index) => (
-                            <div key={index} className="flex items-center justify-between pb-4 border-b last:border-0 last:pb-0">
-                              <div>
-                                <h4 className="font-medium">{activity.subject}</h4>
-                                <p className="text-sm text-muted-foreground">{activity.date}</p>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-                                  Absent
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </TabsContent>
-                      </Tabs>
-                    </CardContent>
-                  </Card>
-                  
-                  <AttendanceStats role="student" />
-                </motion.div>
-              </TabsContent>
-            </Tabs>
+                      <Button 
+                        onClick={() => setShowQRScanner(true)}
+                        className="bg-amber-600 hover:bg-amber-700 text-white"
+                      >
+                        <UserCheck className="mr-2 h-4 w-4" />
+                        Mark Attendance
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
           </motion.div>
         </div>
       </main>

@@ -11,6 +11,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import QRGeneratorPage from "./pages/QRGeneratorPage";
 import AttendancePage from "./pages/AttendancePage";
+import FaceVerificationPage from "./pages/FaceVerificationPage";
 import MarkAttendancePage from "./pages/MarkAttendancePage";
 import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
@@ -36,6 +37,7 @@ const App = () => (
               <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
               <Route path="/qr-generator" element={<QRGeneratorPage />} />
               <Route path="/attendance/:classId" element={<AttendancePage />} />
+              <Route path="/face-verification/:classId" element={<FaceVerificationPage />} />
               <Route path="/mark-attendance" element={<MarkAttendancePage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/contact" element={<ContactPage />} />
