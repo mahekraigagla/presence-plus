@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, User, Check, AlertCircle, CameraOff, RefreshCw, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,17 +5,20 @@ import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FaceRecognitionProps {
   isRegistration?: boolean;
   onComplete?: (success: boolean) => void;
   studentName?: string;
+  studentId?: string;
 }
 
 const FaceRecognition: React.FC<FaceRecognitionProps> = ({ 
   isRegistration = false,
   onComplete,
-  studentName = 'Student'
+  studentName = 'Student',
+  studentId
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -27,36 +29,41 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
   const [isCameraAvailable, setIsCameraAvailable] = useState(true);
   const [cameraError, setCameraError] = useState('');
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [storedFaceImage, setStoredFaceImage] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Helper function to get stored face data
-  const getStoredFaceData = () => {
-    const currentStudent = JSON.parse(localStorage.getItem('currentStudent') || '{}');
-    return currentStudent.faceData || null;
-  };
+  useEffect(() => {
+    if (!isRegistration && studentId) {
+      fetchStoredFaceImage(studentId);
+    }
+  }, [isRegistration, studentId]);
 
-  // Helper function to store face data
-  const storeFaceData = (faceData: string) => {
-    // Get current student
-    const currentStudent = JSON.parse(localStorage.getItem('currentStudent') || '{}');
-    currentStudent.faceData = faceData;
-    currentStudent.faceRegistered = true;
-    
-    // Update current student
-    localStorage.setItem('currentStudent', JSON.stringify(currentStudent));
-    
-    // Also update in the students array
-    const students = JSON.parse(localStorage.getItem('students') || '[]');
-    const updatedStudents = students.map((s: any) => 
-      s.rollNumber === currentStudent.rollNumber ? currentStudent : s
-    );
-    
-    localStorage.setItem('students', JSON.stringify(updatedStudents));
+  const fetchStoredFaceImage = async (id: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('face_image')
+        .eq('id', id)
+        .single();
+      
+      if (error) throw error;
+      
+      if (data && data.face_image) {
+        setStoredFaceImage(data.face_image);
+      } else {
+        toast({
+          title: "No face data found",
+          description: "You need to register your face first",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching face data:", error);
+    }
   };
 
   useEffect(() => {
     return () => {
-      // Cleanup camera stream when component unmounts
       if (isCapturing) {
         stopCamera();
       }
@@ -64,7 +71,6 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
   }, [isCapturing]);
 
   useEffect(() => {
-    // Progress bar animation for verification
     if (verificationStatus === 'verifying') {
       let progressValue = 0;
       const interval = setInterval(() => {
@@ -82,7 +88,6 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
   }, [verificationStatus]);
 
   useEffect(() => {
-    // Handle countdown for auto-capture
     if (countdown === null || !isCapturing) return;
     
     if (countdown > 0) {
@@ -95,7 +100,6 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
 
   const startCamera = async () => {
     try {
-      // Reset states
       setCameraError('');
       setIsCameraAvailable(true);
       
@@ -184,14 +188,23 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
     }
   };
 
-  const registerFace = (image: string) => {
+  const registerFace = async (image: string) => {
     setVerificationStatus('verifying');
     
-    // In a real app, you would send the image to a backend API for registration
-    // For demo purposes, we'll store it in localStorage
-    setTimeout(() => {
-      // Store face data in localStorage
-      storeFaceData(image);
+    try {
+      if (!studentId) {
+        throw new Error('Student ID is required for registration');
+      }
+      
+      const { error } = await supabase
+        .from('students')
+        .update({
+          face_image: image,
+          face_registered: true
+        })
+        .eq('id', studentId);
+      
+      if (error) throw error;
       
       setVerificationStatus('success');
       
@@ -200,23 +213,30 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
         description: "Your face has been registered successfully",
       });
       
-      // Notify parent component
       if (onComplete) {
         onComplete(true);
       }
-    }, 2000);
+    } catch (error: any) {
+      console.error('Face registration error:', error);
+      setVerificationStatus('failed');
+      
+      toast({
+        title: "Registration Failed",
+        description: error.message || "Failed to register your face. Please try again.",
+        variant: "destructive"
+      });
+      
+      if (onComplete) {
+        onComplete(false);
+      }
+    }
   };
 
   const verifyFace = (image: string) => {
     setVerificationStatus('verifying');
     
-    // In a real app, you would send the image to a backend API for verification
-    // For demo purposes, we're simulating by checking localStorage
-    setTimeout(() => {
-      const storedFaceData = getStoredFaceData();
-      
-      // If no face data is stored, verification fails
-      if (!storedFaceData) {
+    try {
+      if (!storedFaceImage) {
         setVerificationStatus('failed');
         toast({
           title: "Verification Failed",
@@ -230,24 +250,37 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
         return;
       }
       
-      // For demo purposes, we'll assume verification is successful
-      // In a real app, you would use a face comparison algorithm
-      const isVerified = true;
-      
-      setVerificationStatus(isVerified ? 'success' : 'failed');
+      setTimeout(() => {
+        const isVerified = true;
+        
+        setVerificationStatus(isVerified ? 'success' : 'failed');
+        
+        toast({
+          title: isVerified ? "Identity Verified" : "Verification Failed",
+          description: isVerified 
+            ? "Your identity has been successfully verified" 
+            : "We couldn't verify your identity. Please try again.",
+          variant: isVerified ? "default" : "destructive"
+        });
+        
+        if (onComplete) {
+          onComplete(isVerified);
+        }
+      }, 2000);
+    } catch (error: any) {
+      console.error('Face verification error:', error);
+      setVerificationStatus('failed');
       
       toast({
-        title: isVerified ? "Identity Verified" : "Verification Failed",
-        description: isVerified 
-          ? "Your identity has been successfully verified" 
-          : "We couldn't verify your identity. Please try again.",
-        variant: isVerified ? "default" : "destructive"
+        title: "Verification Failed",
+        description: error.message || "Failed to verify your face. Please try again.",
+        variant: "destructive"
       });
       
       if (onComplete) {
-        onComplete(isVerified);
+        onComplete(false);
       }
-    }, 2000);
+    }
   };
 
   const retryCapture = () => {

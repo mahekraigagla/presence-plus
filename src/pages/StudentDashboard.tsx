@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
@@ -98,17 +97,6 @@ const StudentDashboard = () => {
     await supabase.auth.signOut();
     navigate('/login');
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Navbar userRole="student" />
-        <div className="flex-grow flex items-center justify-center">
-          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
-        </div>
-      </div>
-    );
-  }
 
   const fadeIn = {
     initial: { opacity: 0, y: 20 },

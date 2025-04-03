@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
@@ -9,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { UserRound, Lock, LogIn, AlertCircle, Fingerprint } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 interface StudentLoginProps {
   onLoginSuccess: () => void;
@@ -22,6 +22,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
   const [error, setError] = useState('');
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +63,29 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
           .eq('user_id', data.user.id)
           .single();
         
-        if (studentError) throw studentError;
+        if (studentError) {
+          // Check if it's a teacher account instead
+          const { data: teacherData, error: teacherError } = await supabase
+            .from('teachers')
+            .select('*')
+            .eq('user_id', data.user.id)
+            .single();
+          
+          if (teacherError) {
+            throw new Error('No profile found. Please sign up first.');
+          }
+          
+          // If it's a teacher, store teacher data and redirect to teacher dashboard
+          localStorage.setItem('currentTeacher', JSON.stringify(teacherData));
+          toast({
+            title: "Login successful",
+            description: `Welcome back, ${teacherData.full_name}!`,
+            variant: "default"
+          });
+          
+          navigate('/teacher-dashboard');
+          return;
+        }
         
         // Store current student data in localStorage for UI purposes
         localStorage.setItem('currentStudent', JSON.stringify(studentData));
@@ -73,7 +96,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
           variant: "default"
         });
         
-        onLoginSuccess();
+        navigate('/student-dashboard');
       }
     } catch (error: any) {
       setError(error.message || 'Invalid email or password');
@@ -148,10 +171,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
               </p>
             </motion.div>
           ) : (
-            <motion.form 
-              initial="hidden"
-              animate="visible"
-              variants={formVariants}
+            <form 
               onSubmit={handleLogin} 
               className="space-y-5"
             >
@@ -166,7 +186,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
                 </motion.div>
               )}
               
-              <motion.div variants={itemVariants} className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="email" className="text-gray-700 dark:text-gray-300">Email</Label>
                 <div className="relative">
                   <UserRound className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -179,9 +199,9 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
-              </motion.div>
+              </div>
               
-              <motion.div variants={itemVariants} className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="password" className="text-gray-700 dark:text-gray-300">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -194,16 +214,14 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
-              </motion.div>
+              </div>
               
-              <motion.div variants={itemVariants}>
-                <Button type="submit" className="w-full h-11 font-medium">
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Login
-                </Button>
-              </motion.div>
+              <Button type="submit" className="w-full h-11 font-medium">
+                <LogIn className="mr-2 h-4 w-4" />
+                Login
+              </Button>
               
-              <motion.div variants={itemVariants} className="pt-4 border-t border-gray-100 dark:border-gray-700">
+              <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                 <div className="text-center space-y-3">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     First time marking attendance?
@@ -217,8 +235,8 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
                     Register Now
                   </Button>
                 </div>
-              </motion.div>
-            </motion.form>
+              </div>
+            </form>
           )}
         </CardContent>
       </Card>

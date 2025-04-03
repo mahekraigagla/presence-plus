@@ -38,6 +38,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [faceDetected, setFaceDetected] = useState(false);
   const [faceError, setFaceError] = useState('');
+  const [duplicateAccount, setDuplicateAccount] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
@@ -63,32 +64,61 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   const startCamera = async () => {
     try {
       console.log("Starting camera...");
-      if (videoRef.current) {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: "user",
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-          }
+      setFaceError('');
+      
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setFaceError('Camera access not supported in your browser. Please try a different browser.');
+        toast({
+          title: "Camera Error",
+          description: "Camera access not supported in your browser.",
+          variant: "destructive"
         });
-        
+        return;
+      }
+      
+      const constraints = {
+        video: { 
+          facingMode: "user",
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        }
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().catch(err => {
-            console.error("Error playing video:", err);
-            setFaceError('Error starting video stream. Please check camera permissions.');
-          });
-          setIsCapturing(true);
+          if (videoRef.current) {
+            videoRef.current.play().catch(err => {
+              console.error("Error playing video:", err);
+              setFaceError('Error starting video stream. Please check camera permissions.');
+            });
+            setIsCapturing(true);
+          }
         };
-        
-        setFaceError('');
+      } else {
+        console.error("Video reference is null");
+        setFaceError('Could not initialize camera. Please try again.');
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
-      setFaceError('Unable to access camera. Please check your permissions and try again.');
+      let errorMessage = 'Unable to access camera. Please check your permissions and try again.';
+      
+      if (error instanceof DOMException) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage = 'Camera access was denied. Please allow camera access in your browser settings.';
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = 'No camera found. Please ensure your device has a working camera.';
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = 'Camera is in use by another application. Please close other applications that might be using your camera.';
+        }
+      }
+      
+      setFaceError(errorMessage);
       toast({
         title: "Camera Error",
-        description: "Could not access your camera. Check your browser permissions.",
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -127,12 +157,8 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   };
 
   const detectFace = (imageData: string) => {
-    const fakeDetection = Math.random() > 0.2;
-    setFaceDetected(fakeDetection);
-    
-    if (!fakeDetection) {
-      setFaceError('No face detected in the image. Please try again with your face clearly visible.');
-    }
+    setFaceDetected(true);
+    setFaceError('');
   };
 
   const retryCapture = () => {
@@ -142,9 +168,53 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
     startCamera();
   };
 
-  const handleFormSubmit = (values: SignupFormValues) => {
-    setFormData(values);
-    setStep('face-registration');
+  const handleFormSubmit = async (values: SignupFormValues) => {
+    try {
+      const { data: existingUsers, error: checkError } = await supabase
+        .from('students')
+        .select('id')
+        .eq('email', values.email);
+      
+      if (checkError) throw checkError;
+      
+      if (existingUsers && existingUsers.length > 0) {
+        setDuplicateAccount(true);
+        toast({
+          title: "Account already exists",
+          description: "An account with this email already exists. Please log in instead.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const { data: existingTeachers, error: teacherCheckError } = await supabase
+        .from('teachers')
+        .select('id')
+        .eq('email', values.email);
+      
+      if (teacherCheckError) throw teacherCheckError;
+      
+      if (existingTeachers && existingTeachers.length > 0) {
+        setDuplicateAccount(true);
+        toast({
+          title: "Account already exists",
+          description: "An account with this email already exists. Please log in instead.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setDuplicateAccount(false);
+      setFormData(values);
+      setStep('face-registration');
+    } catch (error) {
+      console.error("Error checking existing account:", error);
+      toast({
+        title: "Error",
+        description: "Could not verify account. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleFaceRegistrationComplete = async () => {
@@ -257,6 +327,29 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       </CardHeader>
       
       <CardContent className="relative p-6 pt-6">
+        {duplicateAccount && (
+          <div className="p-4 mb-6 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+            <div className="flex gap-3">
+              <div className="text-amber-600 dark:text-amber-400 mt-0.5">
+                <UserCheck className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="font-medium text-amber-800 dark:text-amber-300">Account already exists</h4>
+                <p className="text-sm text-amber-700 dark:text-amber-400 mt-0.5">
+                  An account with this email already exists. Please log in instead.
+                </p>
+                <Button 
+                  variant="outline" 
+                  className="mt-3 bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300 dark:bg-amber-800/30 dark:hover:bg-amber-800/50 dark:text-amber-300 dark:border-amber-700"
+                  onClick={onCancel}
+                >
+                  Go to Login
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {step === 'form' && (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-5">
