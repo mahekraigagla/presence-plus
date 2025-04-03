@@ -39,6 +39,8 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   const [faceDetected, setFaceDetected] = useState(false);
   const [faceError, setFaceError] = useState('');
   const [duplicateAccount, setDuplicateAccount] = useState(false);
+  const [captureCount, setCaptureCount] = useState(0);
+  const [faceImages, setFaceImages] = useState<string[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
@@ -88,6 +90,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        
         videoRef.current.onloadedmetadata = () => {
           if (videoRef.current) {
             videoRef.current.play().catch(err => {
@@ -136,7 +139,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   };
 
   const captureImage = () => {
-    if (videoRef.current && canvasRef.current) {
+    if (videoRef.current && canvasRef.current && isCapturing) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
@@ -147,11 +150,28 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       if (context) {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const image = canvas.toDataURL('image/png');
-        setCapturedImage(image);
+        
+        if (captureCount < 3) {
+          setFaceImages(prev => [...prev, image]);
+          setCaptureCount(prev => prev + 1);
+          
+          toast({
+            title: `Face ${captureCount + 1} captured`,
+            description: captureCount < 2 ? "Please capture more face angles for better recognition" : "All faces captured!",
+          });
+          
+          if (captureCount >= 2) {
+            setCapturedImage(image);
+            setFaceDetected(true);
+            stopCamera();
+          }
+        } else {
+          setCapturedImage(image);
+          setFaceDetected(true);
+          stopCamera();
+        }
         
         detectFace(image);
-        
-        stopCamera();
       }
     }
   };
@@ -163,6 +183,8 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
 
   const retryCapture = () => {
     setCapturedImage(null);
+    setFaceImages([]);
+    setCaptureCount(0);
     setFaceDetected(false);
     setFaceError('');
     startCamera();
@@ -170,31 +192,22 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
 
   const handleFormSubmit = async (values: SignupFormValues) => {
     try {
-      const { data: existingUsers, error: checkError } = await supabase
+      const { data: existingStudents, error: studentCheckError } = await supabase
         .from('students')
-        .select('id')
+        .select('id, email')
         .eq('email', values.email);
       
-      if (checkError) throw checkError;
-      
-      if (existingUsers && existingUsers.length > 0) {
-        setDuplicateAccount(true);
-        toast({
-          title: "Account already exists",
-          description: "An account with this email already exists. Please log in instead.",
-          variant: "destructive"
-        });
-        return;
-      }
+      if (studentCheckError) throw studentCheckError;
       
       const { data: existingTeachers, error: teacherCheckError } = await supabase
         .from('teachers')
-        .select('id')
+        .select('id, email')
         .eq('email', values.email);
       
       if (teacherCheckError) throw teacherCheckError;
       
-      if (existingTeachers && existingTeachers.length > 0) {
+      if ((existingStudents && existingStudents.length > 0) || 
+          (existingTeachers && existingTeachers.length > 0)) {
         setDuplicateAccount(true);
         toast({
           title: "Account already exists",
@@ -218,7 +231,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   };
 
   const handleFaceRegistrationComplete = async () => {
-    if (!formData || !capturedImage || !faceDetected) {
+    if (!formData || !faceDetected || faceImages.length === 0) {
       toast({
         title: "Registration Error",
         description: "Please complete form and face registration to continue.",
@@ -242,7 +255,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
 
   const completeSignup = async () => {
     try {
-      if (!formData || !capturedImage) return;
+      if (!formData || faceImages.length === 0) return;
       
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -261,7 +274,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
             email: formData.email,
             department: formData.department,
             year: formData.year,
-            face_image: capturedImage,
+            face_image: faceImages[0],
             face_registered: true
           }]);
           
@@ -545,6 +558,11 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
                 We need to capture your face for attendance verification. Please ensure you're in a well-lit environment and your face is clearly visible.
               </p>
+              {captureCount > 0 && (
+                <div className="mt-2 text-primary font-medium">
+                  {captureCount}/3 photos captured
+                </div>
+              )}
             </div>
             
             <div className="bg-gray-100 dark:bg-gray-800 aspect-video rounded-lg overflow-hidden relative">
@@ -563,6 +581,18 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                     alt="Captured face" 
                     className="w-full h-full object-cover" 
                   />
+                  {faceImages.length > 0 && (
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+                      {faceImages.map((img, index) => (
+                        <div 
+                          key={index} 
+                          className="w-12 h-12 rounded-full overflow-hidden border-2 border-white"
+                        >
+                          <img src={img} alt={`Face ${index+1}`} className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {faceDetected && (
                     <div className="absolute inset-0 border-4 border-green-500 rounded-lg animate-pulse opacity-50"></div>
                   )}
@@ -571,6 +601,14 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                 <div className="flex flex-col items-center justify-center h-full p-4">
                   <Camera className="h-16 w-16 text-muted-foreground mb-4" />
                   <p className="text-center text-muted-foreground">Camera preview will appear here</p>
+                  <Button 
+                    onClick={startCamera}
+                    className="mt-4 bg-primary"
+                    size="sm"
+                  >
+                    <Camera className="mr-2 h-4 w-4" />
+                    Enable Camera
+                  </Button>
                 </div>
               )}
             </div>
@@ -583,13 +621,27 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
             
             <div className="flex flex-col sm:flex-row gap-3">
               {isCapturing ? (
-                <Button 
-                  onClick={captureImage}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
-                >
-                  <Camera className="mr-2 h-4 w-4" />
-                  Capture Image
-                </Button>
+                <>
+                  <Button 
+                    onClick={captureImage}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                  >
+                    <Camera className="mr-2 h-4 w-4" />
+                    Capture Photo ({captureCount + 1}/3)
+                  </Button>
+                  {captureCount >= 3 && (
+                    <Button 
+                      onClick={() => {
+                        stopCamera();
+                        setFaceDetected(true);
+                      }}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      Use These Photos
+                    </Button>
+                  )}
+                </>
               ) : capturedImage ? (
                 <>
                   <Button 
@@ -598,12 +650,12 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                     className="flex-1"
                   >
                     <RefreshCw className="mr-2 h-4 w-4" />
-                    Retake Photo
+                    Retake Photos
                   </Button>
                   
                   <Button 
                     onClick={handleFaceRegistrationComplete}
-                    disabled={!faceDetected}
+                    disabled={!faceDetected || faceImages.length === 0}
                     className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
                   >
                     <UserCheck className="mr-2 h-4 w-4" />
