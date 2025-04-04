@@ -46,6 +46,8 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   const [countdown, setCountdown] = useState<number | null>(null);
   const [photosTaken, setPhotosTaken] = useState(0);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  
+  // Create refs outside of any conditional render to ensure they're always available
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -54,12 +56,20 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
     defaultValues: {
       fullName: '',
       email: '',
-      password: '',
+      password: '123456789', // Default password as requested
       rollNumber: '',
       department: '',
       year: '',
     },
   });
+
+  // Auto-fill the password field for the allowed emails
+  useEffect(() => {
+    const email = form.watch('email');
+    if (ALLOWED_STUDENT_EMAILS.includes(email)) {
+      form.setValue('password', '123456789');
+    }
+  }, [form.watch('email'), form]);
 
   // Stop camera when component unmounts or when leaving the face capture step
   useEffect(() => {
@@ -89,6 +99,12 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
         setCameraStream(null);
+      }
+      
+      if (!videoRef.current) {
+        console.error("Video ref is null before accessing camera");
+        setCameraError("Camera component not initialized properly. Please refresh and try again.");
+        return;
       }
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -127,7 +143,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
           }
         };
       } else {
-        console.error("Video element reference is null");
+        console.error("Video element reference is null after stream setup");
         setCameraError("Camera component not initialized properly. Please refresh and try again.");
       }
     } catch (err) {
@@ -547,7 +563,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                     className="w-full h-full object-cover"
                     muted
                     playsInline
-                    autoPlay
                   />
                   
                   {countdown !== null && countdown > 0 && (
