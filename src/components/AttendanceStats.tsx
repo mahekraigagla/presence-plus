@@ -1,8 +1,8 @@
+
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AttendanceStatsProps } from '@/components/ui/attendance-types';
 
 // Sample data for demonstration
 const weeklyData = [
@@ -28,7 +28,12 @@ const semesterData = [
   { month: 'May', attended: 32, total: 38 },
 ];
 
-const AttendanceStats: React.FC<AttendanceStatsProps> = ({ studentId, className }) => {
+interface Props {
+  role: 'student' | 'teacher';
+  className?: string;
+}
+
+const AttendanceStats: React.FC<Props> = ({ role, className }) => {
   // Format data for percentage calculation
   const formatDataForChart = (data: any[]) => {
     return data.map(item => {
@@ -80,9 +85,11 @@ const AttendanceStats: React.FC<AttendanceStatsProps> = ({ studentId, className 
   return (
     <Card className={`glass dark:glass-dark shadow-sm ${className}`}>
       <CardHeader>
-        <CardTitle className="text-xl">Your Attendance</CardTitle>
+        <CardTitle className="text-xl">{role === 'student' ? 'Your Attendance' : 'Class Attendance'}</CardTitle>
         <CardDescription>
-          Track your attendance records and performance
+          {role === 'student' 
+            ? 'Track your attendance records and performance' 
+            : 'Monitor your class attendance statistics'}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -188,7 +195,9 @@ const AttendanceStats: React.FC<AttendanceStatsProps> = ({ studentId, className 
         </Tabs>
       </CardContent>
       <CardFooter className="text-xs text-muted-foreground">
-        Minimum required attendance: 75%
+        {role === 'student'
+          ? 'Minimum required attendance: 75%'
+          : 'Class average compared to attendance requirements'}
       </CardFooter>
     </Card>
   );

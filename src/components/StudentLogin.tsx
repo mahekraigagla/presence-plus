@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
@@ -14,16 +15,6 @@ interface StudentLoginProps {
   onLoginSuccess: () => void;
   onSignupClick: () => void;
 }
-
-const ALLOWED_STUDENT_EMAILS = [
-  'mahek.raigagla@somaiya.edu',
-  'jiya.mehta@gmail.com',
-  'rahul@gmail.com',
-  'manavi.k@gmail.com',
-  'pratham.shah@gmail.com'
-];
-
-const ALLOWED_TEACHER_EMAIL = 'sarah.anderson@example.com';
 
 const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupClick }) => {
   const [email, setEmail] = useState('');
@@ -42,25 +33,10 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
       return;
     }
     
-    const lowerEmail = email.toLowerCase();
-    const isTeacher = lowerEmail === ALLOWED_TEACHER_EMAIL.toLowerCase();
-    const isAllowedStudent = ALLOWED_STUDENT_EMAILS.some(
-      allowedEmail => allowedEmail.toLowerCase() === lowerEmail
-    );
-    
-    if (!isTeacher && !isAllowedStudent) {
-      setError('This email is not authorized to access the system.');
-      toast({
-        title: "Login Restricted",
-        description: "This email is not authorized to access the system.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
     setIsLoading(true);
     setError('');
     
+    // Progress bar animation
     let progressValue = 0;
     const interval = setInterval(() => {
       progressValue += 10;
@@ -74,6 +50,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
     try {
       console.log("Attempting to log in with email:", email);
       
+      // Authenticate with Supabase
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -84,7 +61,17 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
       if (data.user) {
         console.log("User authenticated successfully:", data.user.id);
         
-        if (isTeacher) {
+        // Get student details
+        const { data: studentData, error: studentError } = await supabase
+          .from('students')
+          .select('*')
+          .eq('user_id', data.user.id)
+          .single();
+        
+        if (studentError) {
+          console.log("No student profile found, checking if teacher...");
+          
+          // Check if it's a teacher account instead
           const { data: teacherData, error: teacherError } = await supabase
             .from('teachers')
             .select('*')
@@ -92,12 +79,13 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
             .single();
           
           if (teacherError) {
-            console.error("No teacher profile found:", teacherError);
-            throw new Error('No teacher profile found. Please contact admin.');
+            console.error("No profile found:", teacherError);
+            throw new Error('No profile found. Please sign up first.');
           }
           
           console.log("Teacher profile found:", teacherData);
           
+          // If it's a teacher, store teacher data and redirect to teacher dashboard
           localStorage.setItem('currentTeacher', JSON.stringify(teacherData));
           toast({
             title: "Login successful",
@@ -107,30 +95,20 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
           
           navigate('/teacher-dashboard');
           return;
-        } else {
-          const { data: studentData, error: studentError } = await supabase
-            .from('students')
-            .select('*')
-            .eq('user_id', data.user.id)
-            .single();
-          
-          if (studentError) {
-            console.error("No student profile found:", studentError);
-            throw new Error('No student profile found. Please sign up first.');
-          }
-          
-          console.log("Student profile found:", studentData);
-          
-          localStorage.setItem('currentStudent', JSON.stringify(studentData));
-          
-          toast({
-            title: "Login successful",
-            description: `Welcome back, ${studentData.full_name}!`,
-            variant: "default"
-          });
-          
-          navigate('/student-dashboard');
         }
+        
+        console.log("Student profile found:", studentData);
+        
+        // Store current student data in localStorage for UI purposes
+        localStorage.setItem('currentStudent', JSON.stringify(studentData));
+        
+        toast({
+          title: "Login successful",
+          description: `Welcome back, ${studentData.full_name}!`,
+          variant: "default"
+        });
+        
+        navigate('/student-dashboard');
       }
     } catch (error: any) {
       console.error("Login error:", error);
@@ -144,20 +122,6 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
       setIsLoading(false);
       clearInterval(interval);
       setProgress(0);
-    }
-  };
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newEmail = e.target.value;
-    setEmail(newEmail);
-    
-    const lowerEmail = newEmail.toLowerCase();
-    const isAllowedEmail = [...ALLOWED_STUDENT_EMAILS, ALLOWED_TEACHER_EMAIL].some(
-      allowedEmail => allowedEmail.toLowerCase() === lowerEmail
-    );
-    
-    if (isAllowedEmail) {
-      setPassword('123456789');
     }
   };
 
@@ -245,7 +209,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
                     placeholder="Enter your email"
                     className="pl-10 bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-700"
                     value={email}
-                    onChange={handleEmailChange}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
               </div>

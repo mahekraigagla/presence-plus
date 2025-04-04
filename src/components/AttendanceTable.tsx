@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,6 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { AttendanceTableProps } from '@/components/ui/attendance-types';
 
 interface Student {
   id: string;
@@ -21,7 +21,13 @@ interface Student {
   verificationMethod: 'QR + Face' | 'QR Only' | 'Manual' | 'Not Verified';
 }
 
-const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId }) => {
+interface AttendanceTableProps {
+  classId: string;
+  date: string;
+  lectureId?: string;
+}
+
+const AttendanceTable: React.FC<AttendanceTableProps> = ({ classId, date, lectureId }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [students, setStudents] = useState<Student[]>([
     { 
@@ -88,10 +94,9 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId }) => {
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedLecture, setSelectedLecture] = useState('All Lectures');
+  const [selectedLecture, setSelectedLecture] = useState(lectureId || 'All Lectures');
   const [statusFilter, setStatusFilter] = useState<'all' | 'present' | 'absent'>('all');
   const [realTimeUpdates, setRealTimeUpdates] = useState(true);
-  const [date, setDate] = useState(new Date().toLocaleDateString());
   
   const { toast } = useToast();
 
@@ -102,10 +107,12 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId }) => {
     'Lecture 3 - Control Structures (09/14/2023)',
   ];
 
+  // Simulate real-time updates
   useEffect(() => {
     if (!realTimeUpdates) return;
     
     const interval = setInterval(() => {
+      // Randomly simulate a student marking attendance
       if (Math.random() > 0.7) {
         const absentStudents = students.filter(s => s.status === 'absent');
         if (absentStudents.length > 0) {
@@ -113,14 +120,17 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId }) => {
           markAttendance(randomStudent.id, 'present', true);
         }
       }
-    }, 10000);
+    }, 10000); // Every 10 seconds
 
     return () => clearInterval(interval);
   }, [students, realTimeUpdates]);
 
+  // Apply filters
   const filteredStudents = students.filter(student => 
+    // Search filter
     (student.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
      student.rollNumber.includes(searchQuery)) &&
+    // Status filter
     (statusFilter === 'all' || student.status === statusFilter)
   );
 
@@ -154,6 +164,7 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId }) => {
   const downloadAttendance = (format: 'csv' | 'excel' | 'pdf') => {
     setIsLoading(true);
     
+    // Simulate download process
     setTimeout(() => {
       setIsLoading(false);
       toast({
@@ -166,6 +177,7 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId }) => {
   const refreshAttendance = () => {
     setIsLoading(true);
     
+    // Simulate data refresh
     setTimeout(() => {
       setIsLoading(false);
       toast({
@@ -175,6 +187,7 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId }) => {
     }, 1500);
   };
 
+  // Calculate statistics
   const totalStudents = students.length;
   const presentStudents = students.filter(s => s.status === 'present').length;
   const attendanceRate = Math.round((presentStudents / totalStudents) * 100);

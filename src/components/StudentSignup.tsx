@@ -27,15 +27,6 @@ const studentSchema = z.object({
   year: z.string().min(1, { message: 'Year is required' }),
 });
 
-// List of allowed student emails
-const ALLOWED_STUDENT_EMAILS = [
-  'mahek.raigagla@somaiya.edu',
-  'jiya.mehta@gmail.com',
-  'rahul@gmail.com',
-  'manavi.k@gmail.com',
-  'pratham.shah@gmail.com'
-];
-
 const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,9 +36,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [photosTaken, setPhotosTaken] = useState(0);
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  
-  // Create refs outside of any conditional render to ensure they're always available
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -56,22 +44,14 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
     defaultValues: {
       fullName: '',
       email: '',
-      password: '123456789', // Default password as requested
+      password: '',
       rollNumber: '',
       department: '',
       year: '',
     },
   });
 
-  // Auto-fill the password field for the allowed emails
-  useEffect(() => {
-    const email = form.watch('email');
-    if (ALLOWED_STUDENT_EMAILS.includes(email)) {
-      form.setValue('password', '123456789');
-    }
-  }, [form.watch('email'), form]);
-
-  // Stop camera when component unmounts or when leaving the face capture step
+  // Stop camera when component unmounts
   useEffect(() => {
     return () => {
       stopCamera();
@@ -93,19 +73,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   const startCamera = async () => {
     try {
       setCameraError(null);
-      console.log("Attempting to start camera...");
-      
-      // Stop any existing streams first
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-        setCameraStream(null);
-      }
-      
-      if (!videoRef.current) {
-        console.error("Video ref is null before accessing camera");
-        setCameraError("Camera component not initialized properly. Please refresh and try again.");
-        return;
-      }
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
@@ -116,35 +83,21 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         audio: false
       });
       
-      setCameraStream(stream);
-      console.log("Camera stream obtained successfully");
-      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         
-        // Wait for metadata to load before playing
         videoRef.current.onloadedmetadata = () => {
-          console.log("Video metadata loaded, attempting to play");
-          
-          if (videoRef.current) {
-            // Ensure video element is not null when we try to play
-            videoRef.current.play()
-              .then(() => {
-                console.log("Camera started successfully for face registration");
-                setIsCapturing(true);
-                // Start countdown for first photo after a short delay
-                setTimeout(() => startCountdown(), 1500);
-              })
-              .catch(err => {
-                console.error("Error starting camera playback:", err);
-                setCameraError("Failed to start camera. Please check your permissions.");
-                setIsCapturing(false);
-              });
-          }
+          videoRef.current?.play()
+            .then(() => {
+              console.log("Camera started successfully for face registration");
+              setIsCapturing(true);
+            })
+            .catch(err => {
+              console.error("Error starting camera:", err);
+              setCameraError("Failed to start camera. Please check your permissions.");
+              setIsCapturing(false);
+            });
         };
-      } else {
-        console.error("Video element reference is null after stream setup");
-        setCameraError("Camera component not initialized properly. Please refresh and try again.");
       }
     } catch (err) {
       console.error("Camera access error:", err);
@@ -170,92 +123,52 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   };
 
   const stopCamera = () => {
-    console.log("Stopping camera...");
-    if (cameraStream) {
-      cameraStream.getTracks().forEach(track => {
-        console.log(`Stopping track: ${track.kind}`);
-        track.stop();
-      });
-      setCameraStream(null);
-    }
-    
-    if (videoRef.current) {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      const tracks = stream.getTracks();
+      
+      tracks.forEach(track => track.stop());
       videoRef.current.srcObject = null;
     }
     
     setIsCapturing(false);
-    console.log("Camera stopped");
   };
 
   const startCountdown = () => {
-    console.log("Starting countdown for photo capture");
     setCountdown(3);
   };
 
   const captureImage = () => {
-    if (!videoRef.current || !canvasRef.current) {
-      console.error("Video or canvas ref is null during capture");
-      return;
-    }
+    if (!videoRef.current || !canvasRef.current) return;
     
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
-    // Check if video is playing and has dimensions
-    if (video.readyState !== 4 || video.videoWidth === 0 || video.videoHeight === 0) {
-      console.error("Video not ready for capture");
-      toast({
-        title: "Camera Error",
-        description: "Camera stream not ready. Please try again.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    console.log(`Capturing image with dimensions: ${video.videoWidth}x${video.videoHeight}`);
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     
     const context = canvas.getContext('2d');
-    if (!context) {
-      console.error("Could not get canvas context");
-      return;
-    }
+    if (!context) return;
     
-    try {
-      // Capture the image from video
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = canvas.toDataURL('image/png');
-      console.log("Image captured successfully");
-      
-      // Store captured image
-      setCapturedImages(prev => [...prev, imageData]);
-      setPhotosTaken(prev => prev + 1);
-      setCountdown(null);
-      
-      // If we've taken 3 photos, stop the camera
-      if (photosTaken >= 2) { // This will be the 3rd photo (0, 1, 2)
-        console.log("All photos captured, stopping camera");
-        stopCamera();
-      } else {
-        // Reset countdown for next photo after a short delay
-        console.log("Preparing for next photo");
-        setTimeout(() => {
-          startCountdown();
-        }, 1000);
-      }
-    } catch (err) {
-      console.error("Error during image capture:", err);
-      toast({
-        title: "Capture Error",
-        description: "Failed to capture image. Please try again.",
-        variant: "destructive"
-      });
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = canvas.toDataURL('image/png');
+    
+    setCapturedImages(prev => [...prev, imageData]);
+    setPhotosTaken(prev => prev + 1);
+    setCountdown(null);
+    
+    // If we've taken 3 photos, stop the camera
+    if (photosTaken >= 2) { // This will be the 3rd photo (0, 1, 2)
+      stopCamera();
+    } else {
+      // Reset countdown for next photo
+      setTimeout(() => {
+        startCountdown();
+      }, 1000);
     }
   };
 
   const resetCapture = () => {
-    console.log("Resetting capture process");
     setCapturedImages([]);
     setPhotosTaken(0);
     setCountdown(null);
@@ -263,18 +176,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   };
 
   const onDetailsSubmit = async (data: z.infer<typeof studentSchema>) => {
-    console.log("Processing form submission:", data);
-    
-    // Check if email is in the allowed list
-    if (!ALLOWED_STUDENT_EMAILS.includes(data.email.toLowerCase())) {
-      toast({
-        title: "Registration Restricted",
-        description: "This email is not authorized for student registration.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
     // First, check if the email already exists
     const { data: existingUsers, error: checkError } = await supabase
       .from('students')
@@ -301,13 +202,11 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
     }
     
     // Proceed to face capture
-    console.log("Details validated, proceeding to face capture");
     setCurrentStep('face-capture');
   };
 
   const completeSignup = async () => {
     setIsSubmitting(true);
-    console.log("Completing signup process");
     
     try {
       const data = form.getValues();
@@ -322,7 +221,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         return;
       }
       
-      console.log("Creating Supabase auth user");
       // Create Supabase auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
@@ -342,7 +240,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         throw new Error("Failed to create user account.");
       }
       
-      console.log("Auth user created successfully, storing student details");
       // Store student details with face image
       const { error: studentError } = await supabase
         .from('students')
@@ -358,11 +255,9 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         });
       
       if (studentError) {
-        console.error("Error creating student profile:", studentError);
         throw new Error(`Failed to create student profile: ${studentError.message}`);
       }
       
-      console.log("Student profile created successfully");
       // Success!
       toast({
         title: "Account Created",

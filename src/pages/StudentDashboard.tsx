@@ -12,7 +12,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import AttendanceStats from '@/components/AttendanceStats';
 import AttendanceTable from '@/components/AttendanceTable';
-import { AttendanceStatsProps, AttendanceTableProps } from '@/components/ui/attendance-types';
 
 const StudentDashboard = () => {
   const [showQRScanner, setShowQRScanner] = useState(false);
@@ -169,7 +168,6 @@ const StudentDashboard = () => {
                   
                   <TabsContent value="overview" className="mt-6 space-y-6">
                     <motion.div variants={fadeIn}>
-                      {/* Fixed prop type - using the correct type */}
                       <AttendanceStats studentId={student?.id} />
                     </motion.div>
                   </TabsContent>
@@ -187,7 +185,6 @@ const StudentDashboard = () => {
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          {/* Fixed prop type - using the correct type */}
                           <AttendanceTable studentId={student?.id} />
                         </CardContent>
                       </Card>

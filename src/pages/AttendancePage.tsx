@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -70,7 +71,7 @@ const AttendancePage = () => {
     }
   };
 
-  const handleSignupComplete = () => {
+  const handleSignupComplete = (studentData: any) => {
     // After signup, proceed to face registration
     setStage('face-recognition');
     setIsFirstVisit(true);
@@ -110,6 +111,7 @@ const AttendancePage = () => {
     }
   };
 
+  // Mock function to get class name from class ID
   const getClassNameById = (id: string) => {
     const classes: Record<string, string> = {
       'cs101': 'Introduction to Computer Science',
