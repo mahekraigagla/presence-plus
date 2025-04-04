@@ -1,14 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, KeyRound, EyeOff, Eye, LogIn, UserPlus, InfoIcon } from 'lucide-react';
+import { User, KeyRound, EyeOff, Eye, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import StudentLogin from '@/components/StudentLogin';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const Login = () => {
   const [role, setRole] = useState<'student' | 'teacher'>('student');
@@ -16,12 +15,11 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showDemo, setShowDemo] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   // Auto-fill teacher credentials
-  useEffect(() => {
+  React.useEffect(() => {
     if (role === 'teacher') {
       setEmail('sarah.anderson@example.com');
       setPassword('123456789');
@@ -93,22 +91,6 @@ const Login = () => {
         >
           <div className="relative z-10">
             <div className="absolute -z-10 w-96 h-96 rounded-full bg-primary/10 blur-3xl top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2"></div>
-            
-            {showDemo && (
-              <motion.div variants={fadeInUp} className="mb-6">
-                <Alert>
-                  <InfoIcon className="h-4 w-4" />
-                  <AlertTitle>Demo Information</AlertTitle>
-                  <AlertDescription>
-                    <p>Teacher login is restricted to: <strong>sarah.anderson@example.com</strong> (password: 123456789)</p>
-                    <p>Any user can login as a student.</p>
-                    <Button size="sm" variant="outline" onClick={() => setShowDemo(false)} className="mt-2">
-                      Dismiss
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              </motion.div>
-            )}
             
             <motion.div variants={fadeInUp} className="text-center mb-6">
               <h1 className="text-3xl font-bold mb-2 text-gradient">Welcome Back</h1>
@@ -199,15 +181,6 @@ const Login = () => {
                             </>
                           )}
                         </Button>
-                        
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground">
-                            Don't have an account?{' '}
-                            <Link to="/signup" className="text-primary hover:text-primary/80 font-medium">
-                              Contact administrator
-                            </Link>
-                          </p>
-                        </div>
                       </motion.form>
                     </div>
                   </div>

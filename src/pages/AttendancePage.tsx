@@ -1,274 +1,385 @@
-
 import React, { useState, useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { CalendarDays, CheckCircle2, Clock, User2, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import FaceRecognition from '@/components/FaceRecognition';
-import QRAuthVerification from '@/components/QRAuthVerification';
-import Navbar from '@/components/Navbar';
-import StudentSignup from '@/components/StudentSignup';
-import StudentLogin from '@/components/StudentLogin';
-import { Check, QrCode, UserX, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
+import { DatePicker } from "@/components/ui/date-picker";
+import { cn } from "@/lib/utils";
+
+const formSchema = z.object({
+  date: z.date({
+    required_error: "A date is required.",
+  }),
+});
 
 const AttendancePage = () => {
+  const [classInfo, setClassInfo] = useState<{ id: string; name: string } | null>(null);
+  const [attendanceData, setAttendanceData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { classId } = useParams<{ classId: string }>();
-  const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const lectureId = searchParams.get('lecture') || '';
-  const timestamp = searchParams.get('timestamp') || '';
-  const hasLocationData = searchParams.has('lat') && searchParams.has('lng');
-  
-  const [stage, setStage] = useState<'login' | 'signup' | 'face-recognition' | 'success' | 'failed'>('login');
-  const [isFirstVisit, setIsFirstVisit] = useState(false);
-  const [attendanceMarked, setAttendanceMarked] = useState(false);
-  const [currentStudent, setCurrentStudent] = useState<any>(null);
   const { toast } = useToast();
-  
+  const [progress, setProgress] = useState(0);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      date: new Date(),
+    },
+  });
+
   useEffect(() => {
-    // Check if we have proper QR code data
-    if (!classId || !lectureId || !timestamp) {
+    if (!classId) {
       toast({
-        title: "Invalid QR Code",
-        description: "This QR code is missing required information. Please scan a valid QR code.",
-        variant: "destructive"
+        title: "Error",
+        description: "Class ID is missing.",
+        variant: "destructive",
       });
+      setIsLoading(false);
+      return;
     }
-    
-    // Check if there's a current student in localStorage
-    const storedStudent = localStorage.getItem('currentStudent');
-    if (storedStudent) {
-      const student = JSON.parse(storedStudent);
-      setCurrentStudent(student);
-      
-      // Check if the student has registered their face
-      if (student.faceRegistered) {
-        setIsFirstVisit(false);
-      } else {
-        setIsFirstVisit(true);
+
+    const fetchClassInfo = async () => {
+      try {
+        const { data: classData, error: classError } = await supabase
+          .from('classes')
+          .select('id, name')
+          .eq('id', classId)
+          .single();
+
+        if (classError) {
+          console.error("Error fetching class info:", classError);
+          throw classError;
+        }
+
+        if (classData) {
+          setClassInfo({ id: classData.id, name: classData.name });
+        } else {
+          toast({
+            title: "Error",
+            description: "Class not found.",
+            variant: "destructive",
+          });
+        }
+      } catch (error: any) {
+        console.error("Error fetching class info:", error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to load class information.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
       }
-    }
-    
-    // In a real app, you would fetch the lecture and class details from the API here
-  }, [classId, lectureId, timestamp, toast]);
-
-  const handleLoginSuccess = () => {
-    // Get the current student data again (after login)
-    const storedStudent = localStorage.getItem('currentStudent');
-    if (storedStudent) {
-      const student = JSON.parse(storedStudent);
-      setCurrentStudent(student);
-      
-      // Check if the student has registered their face
-      if (student.faceRegistered) {
-        setStage('face-recognition');
-        setIsFirstVisit(false);
-      } else {
-        setStage('face-recognition');
-        setIsFirstVisit(true);
-      }
-    }
-  };
-
-  const handleSignupComplete = (studentData: any) => {
-    // After signup, proceed to face registration
-    setStage('face-recognition');
-    setIsFirstVisit(true);
-  };
-
-  const handleFaceRecognitionComplete = (success: boolean) => {
-    if (success) {
-      setStage('success');
-      setAttendanceMarked(true);
-      
-      // In a real app, you would submit the attendance to an API here
-      toast({
-        title: "Attendance Marked",
-        description: `Your attendance for ${getClassNameById(classId || '')} has been recorded successfully.`,
-      });
-      
-      // Record the attendance in localStorage
-      const attendanceRecord = {
-        studentId: currentStudent?.rollNumber || 'unknown',
-        studentName: currentStudent?.fullName || 'Unknown Student',
-        classId,
-        lectureName: getClassNameById(classId || ''),
-        timestamp: new Date().toISOString(),
-        status: 'Present'
-      };
-      
-      const attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords') || '[]');
-      localStorage.setItem('attendanceRecords', JSON.stringify([...attendanceRecords, attendanceRecord]));
-      
-    } else {
-      setStage('failed');
-      toast({
-        title: "Face Recognition Failed",
-        description: "Could not verify your face. Please try again or contact your teacher.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Mock function to get class name from class ID
-  const getClassNameById = (id: string) => {
-    const classes: Record<string, string> = {
-      'cs101': 'Introduction to Computer Science',
-      'cs102': 'Data Structures and Algorithms',
-      'cs103': 'Database Systems',
     };
-    return classes[id] || `Class ${id}`;
+
+    fetchClassInfo();
+  }, [classId, toast]);
+
+  const fetchAttendanceData = async (selectedDate: Date) => {
+    if (!classId) return;
+
+    setIsLoading(true);
+    try {
+      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+      const { data, error } = await supabase
+        .from('attendances')
+        .select(`
+          id,
+          status,
+          student_id,
+          students (
+            id,
+            full_name,
+            roll_number
+          )
+        `)
+        .eq('class_id', classId)
+        .eq('date', formattedDate);
+
+      if (error) {
+        console.error("Error fetching attendance data:", error);
+        throw error;
+      }
+
+      if (data) {
+        setAttendanceData(data);
+      } else {
+        setAttendanceData([]);
+      }
+    } catch (error: any) {
+      console.error("Error fetching attendance data:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load attendance data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const currentDate = form.getValues().date;
+    fetchAttendanceData(currentDate);
+  }, [classId, toast]);
+
+  const updateAttendanceStatus = async (attendanceId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('attendances')
+        .update({ status: newStatus })
+        .eq('id', attendanceId);
+
+      if (error) {
+        console.error("Error updating attendance status:", error);
+        throw error;
+      }
+
+      // Optimistically update the state
+      setAttendanceData(prevData =>
+        prevData.map(item =>
+          item.id === attendanceId ? { ...item, status: newStatus } : item
+        )
+      );
+
+      toast({
+        title: "Success",
+        description: "Attendance status updated successfully.",
+      });
+    } catch (error: any) {
+      console.error("Error updating attendance status:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update attendance status.",
+        variant: "destructive",
+      });
+      // Revert the state in case of error
+      fetchAttendanceData(form.getValues().date);
+    }
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    setProgress(0);
+
+    let progressValue = 0;
+    const interval = setInterval(() => {
+      progressValue += 10;
+      setProgress(progressValue);
+
+      if (progressValue >= 100) {
+        clearInterval(interval);
+      }
+    }, 100);
+
+    try {
+      const selectedDate = form.getValues().date;
+      await fetchAttendanceData(selectedDate);
+      toast({
+        title: "Attendance Loaded",
+        description: "Attendance data loaded successfully for the selected date.",
+      });
+    } catch (error: any) {
+      console.error("Error submitting form:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load attendance data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+      clearInterval(interval);
+      setProgress(0);
+    }
+  };
+
+  const onSubmit = () => {
+    handleSubmit();
   };
 
   const fadeInUp = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
-      transition: { 
-        duration: 0.5,
+      transition: {
+        duration: 0.6,
         ease: [0.22, 1, 0.36, 1]
       }
     }
   };
 
-  const goBack = () => {
-    if (stage === 'signup') {
-      setStage('login');
-    } else if (stage === 'face-recognition' || stage === 'failed') {
-      // If we came from login or signup, go back there
-      setStage(currentStudent ? 'login' : 'signup');
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="flex items-center justify-center space-x-2">
+          <div className="w-4 h-4 rounded-full animate-pulse bg-primary"></div>
+          <div className="w-4 h-4 rounded-full animate-pulse bg-primary delay-100"></div>
+          <div className="w-4 h-4 rounded-full animate-pulse bg-primary delay-200"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <Navbar userRole="student" />
-      
-      <main className="flex-grow pt-24 pb-16">
-        <div className="container mx-auto px-4">
-          <motion.div 
-            className="grid grid-cols-1 gap-6"
-            initial="hidden"
-            animate="visible"
-            variants={{
-              hidden: { opacity: 0 },
-              visible: { 
-                opacity: 1,
-                transition: { delayChildren: 0.1, staggerChildren: 0.1 }
-              }
-            }}
-          >
-            <motion.div variants={fadeInUp}>
-              <h1 className="text-3xl font-bold">{getClassNameById(classId || '')}</h1>
-              <p className="text-muted-foreground mt-1">Attendance verification for Lecture {lectureId.split('-')[1] || lectureId}</p>
-            </motion.div>
-            
-            {stage !== 'login' && stage !== 'signup' && (
-              <motion.div variants={fadeInUp} className="flex">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={goBack}
-                  className="mb-2"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-1" />
-                  Back
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={{
+        hidden: { opacity: 0 },
+        visible: {
+          opacity: 1,
+          transition: { delayChildren: 0.3, staggerChildren: 0.2 }
+        }
+      }}
+      className="container py-8"
+    >
+      <motion.div variants={fadeInUp} className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-gradient mb-2">
+          Attendance for {classInfo?.name}
+        </h1>
+        <p className="text-muted-foreground">
+          Manage attendance records for this class
+        </p>
+      </motion.div>
+
+      <motion.div variants={fadeInUp} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">
+              <CalendarDays className="mr-2 h-4 w-4 inline-block align-middle" />
+              Select Date
+            </CardTitle>
+            <CardDescription>
+              Choose a date to view attendance records.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Date</FormLabel>
+                      <FormControl>
+                        <DatePicker
+                          className={cn(
+                            "w-full",
+                            !field.value && "text-muted-foreground"
+                          )}
+                          onSelect={(date) => {
+                            form.setValue("date", date!)
+                          }}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Select a date to view the attendance records.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      Loading...
+                      <Progress value={progress} className="mt-2" />
+                    </>
+                  ) : (
+                    "Load Attendance"
+                  )}
                 </Button>
-              </motion.div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">
+              <Users className="mr-2 h-4 w-4 inline-block align-middle" />
+              Attendance Summary
+            </CardTitle>
+            <CardDescription>
+              Overview of attendance for {format(form.getValues().date, 'PPP')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {attendanceData.length === 0 ? (
+              <p className="text-muted-foreground">No attendance data for this date.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead>
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Roll No.
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {attendanceData.map((item) => (
+                      <tr key={item.id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {item.students?.roll_number}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {item.students?.full_name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {item.status}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <div className="space-x-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => updateAttendanceStatus(item.id, 'present')}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => updateAttendanceStatus(item.id, 'absent')}
+                            >
+                              <Clock className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
-            
-            <motion.div variants={fadeInUp} className="flex justify-center">
-              {stage === 'login' && (
-                <StudentLogin 
-                  onLoginSuccess={handleLoginSuccess}
-                  onSignupClick={() => setStage('signup')}
-                />
-              )}
-              
-              {stage === 'signup' && (
-                <StudentSignup 
-                  onComplete={handleSignupComplete}
-                  onCancel={() => setStage('login')}
-                />
-              )}
-              
-              {stage === 'face-recognition' && (
-                <FaceRecognition 
-                  isRegistration={isFirstVisit}
-                  onComplete={handleFaceRecognitionComplete}
-                  studentName={currentStudent?.fullName}
-                />
-              )}
-              
-              {stage === 'success' && (
-                <Card className="w-full max-w-md mx-auto glass dark:glass-dark shadow-lg">
-                  <CardContent className="pt-6 pb-6 flex flex-col items-center text-center">
-                    <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-6 dark:bg-green-900/30">
-                      <Check className="h-12 w-12 text-green-600 dark:text-green-400" />
-                    </div>
-                    <h2 className="text-2xl font-bold mb-2">Attendance Confirmed</h2>
-                    <p className="text-muted-foreground mb-6">
-                      Your attendance has been successfully recorded for {getClassNameById(classId || '')}.
-                    </p>
-                    <div className="w-full p-4 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/30 mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Student:</span>
-                        <span className="font-medium">{currentStudent?.fullName || 'Unknown'}</span>
-                      </div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Roll No:</span>
-                        <span className="font-medium">{currentStudent?.rollNumber || 'Unknown'}</span>
-                      </div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Date:</span>
-                        <span className="font-medium">{new Date().toLocaleDateString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Time:</span>
-                        <span className="font-medium">{new Date().toLocaleTimeString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Lecture ID:</span>
-                        <span className="font-medium">{lectureId}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Verification:</span>
-                        <span className="font-medium">Face Recognition</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      A confirmation has been sent to your registered email address.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {stage === 'failed' && (
-                <Card className="w-full max-w-md mx-auto glass dark:glass-dark shadow-lg">
-                  <CardContent className="pt-6 pb-6 flex flex-col items-center text-center">
-                    <div className="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center mb-6 dark:bg-red-900/30">
-                      <UserX className="h-12 w-12 text-red-600 dark:text-red-400" />
-                    </div>
-                    <h2 className="text-2xl font-bold mb-2">Verification Failed</h2>
-                    <p className="text-muted-foreground mb-6">
-                      We couldn't verify your identity. Please try again or contact your teacher for assistance.
-                    </p>
-                    <Button 
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                      onClick={() => setStage('face-recognition')}
-                    >
-                      Try Again
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </motion.div>
-          </motion.div>
-        </div>
-      </main>
-    </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </motion.div>
   );
 };
 

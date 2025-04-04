@@ -2,18 +2,14 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { InfoIcon } from 'lucide-react';
 import StudentSignup from '@/components/StudentSignup';
 import TeacherSignup from '@/components/TeacherSignup';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Navbar from '@/components/Navbar';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 
 const SignUp = () => {
   const [activeTab, setActiveTab] = useState<'student' | 'teacher'>('student');
-  const [showDemo, setShowDemo] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -39,20 +35,6 @@ const SignUp = () => {
         >
           <div className="relative z-10">
             <div className="absolute -z-10 w-96 h-96 rounded-full bg-primary/10 blur-3xl top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2"></div>
-            
-            {showDemo && (
-              <Alert className="mb-6">
-                <InfoIcon className="h-4 w-4" />
-                <AlertTitle>Demo Information</AlertTitle>
-                <AlertDescription>
-                  <p>Anyone can register as a student.</p>
-                  <p>Only Sarah Anderson can register as a teacher (the form is pre-filled).</p>
-                  <Button size="sm" variant="outline" onClick={() => setShowDemo(false)} className="mt-2">
-                    Dismiss
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
             
             <Tabs 
               defaultValue="student" 

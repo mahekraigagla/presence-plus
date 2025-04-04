@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { UserRound, Lock, LogIn, AlertCircle, Fingerprint } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { StudentData } from '@/integrations/types/attendance-types';
 
 interface StudentLoginProps {
   onLoginSuccess: () => void;
@@ -82,33 +83,17 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
           return;
         }
         
-        // If no teacher found or error, treat as student (allowing any user to login as student)
-        // Either get existing student or create a temporary student profile
-        const { data: existingStudent } = await supabase
+        // Check if student profile exists
+        const { data: studentData, error: studentError } = await supabase
           .from('students')
           .select('*')
           .eq('user_id', data.user.id)
-          .maybeSingle();
-          
-        let studentData = existingStudent;
+          .single();
         
-        // If no student profile exists, create a temporary one in memory
-        if (!studentData) {
-          studentData = {
-            id: crypto.randomUUID(),
-            user_id: data.user.id,
-            full_name: email.split('@')[0],
-            email: email,
-            roll_number: "S" + Math.floor(1000 + Math.random() * 9000),
-            department: "Computer Science",
-            year: "First Year",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          
-          console.log("Created temporary student profile:", studentData);
+        if (studentError || !studentData) {
+          throw new Error("No student profile found. Please sign up first.");
         }
-        
+          
         // Store student data in localStorage
         localStorage.setItem('currentStudent', JSON.stringify(studentData));
         
