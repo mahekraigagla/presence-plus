@@ -12,12 +12,14 @@ interface FaceVerificationProps {
   classId: string;
   lectureId: string;
   timestamp: string;
+  studentId?: string;
 }
 
 const FaceVerification: React.FC<FaceVerificationProps> = ({ 
   classId,
   lectureId,
-  timestamp
+  timestamp,
+  studentId
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -48,35 +50,72 @@ const FaceVerification: React.FC<FaceVerificationProps> = ({
           return;
         }
         
-        // Get student profile
-        const { data: student, error } = await supabase
-          .from('students')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single();
+        // Get student profile - either use passed studentId or get from session
+        const studentIdToUse = studentId || '';
         
-        if (error || !student) {
-          console.error("Error fetching student data:", error);
-          toast({
-            title: "Profile not found",
-            description: "Could not find your student profile",
-            variant: "destructive"
-          });
-          navigate('/login');
-          return;
-        }
-        
-        console.log("Student data fetched:", student);
-        setStudentData(student);
+        // If no studentId was passed, we need to get it from the user's session
+        if (!studentIdToUse) {
+          const { data: student, error } = await supabase
+            .from('students')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single();
+          
+          if (error || !student) {
+            console.error("Error fetching student data:", error);
+            toast({
+              title: "Profile not found",
+              description: "Could not find your student profile",
+              variant: "destructive"
+            });
+            navigate('/login');
+            return;
+          }
+          
+          console.log("Student data fetched:", student);
+          setStudentData(student);
 
-        // Check if student has registered their face
-        if (!student.face_registered || !student.face_image) {
-          toast({
-            title: "Face not registered",
-            description: "You need to register your face first. Please contact your administrator.",
-            variant: "destructive"
-          });
-          navigate('/student-dashboard');
+          // Check if student has registered their face
+          if (!student.face_registered || !student.face_image) {
+            toast({
+              title: "Face not registered",
+              description: "You need to register your face first. Please contact your administrator.",
+              variant: "destructive"
+            });
+            navigate('/student-dashboard');
+            return;
+          }
+        } else {
+          // Use the provided studentId
+          const { data: student, error } = await supabase
+            .from('students')
+            .select('*')
+            .eq('id', studentIdToUse)
+            .single();
+          
+          if (error || !student) {
+            console.error("Error fetching student data with ID:", studentIdToUse, error);
+            toast({
+              title: "Profile not found",
+              description: "Could not find the specified student profile",
+              variant: "destructive"
+            });
+            navigate('/student-dashboard');
+            return;
+          }
+          
+          setStudentData(student);
+          
+          // Check if student has registered their face
+          if (!student.face_registered || !student.face_image) {
+            toast({
+              title: "Face not registered",
+              description: "This student needs to register their face first",
+              variant: "destructive"
+            });
+            navigate('/student-dashboard');
+            return;
+          }
         }
       } catch (err) {
         console.error("Error setting up face verification:", err);
@@ -96,7 +135,7 @@ const FaceVerification: React.FC<FaceVerificationProps> = ({
         stopCamera();
       }
     };
-  }, [navigate, toast]);
+  }, [navigate, toast, studentId]);
 
   useEffect(() => {
     // Progress bar animation for verification
@@ -134,23 +173,33 @@ const FaceVerification: React.FC<FaceVerificationProps> = ({
       setCameraError('');
       setIsCameraAvailable(true);
       
+      // Important: Using the exact constraints that work well across browsers
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: "user",
           width: { ideal: 640 },
           height: { ideal: 480 }
-        } 
+        },
+        audio: false
       });
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        
+        // Wait for metadata to load before playing
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().catch(err => {
-            console.error("Error playing video:", err);
-            setCameraError("Could not start video stream. Please check your permissions.");
-            setIsCameraAvailable(false);
-          });
-          setIsCapturing(true);
+          if (videoRef.current) {
+            videoRef.current.play()
+              .then(() => {
+                console.log("Video stream started successfully");
+                setIsCapturing(true);
+              })
+              .catch(err => {
+                console.error("Error playing video:", err);
+                setCameraError("Could not start video stream. Please check your permissions.");
+                setIsCameraAvailable(false);
+              });
+          }
         };
       }
     } catch (err) {
@@ -231,6 +280,10 @@ const FaceVerification: React.FC<FaceVerificationProps> = ({
     try {
       // In a real-world application, you would send both images to the server
       // for comparison using a facial recognition library like face-api.js
+      console.log("Verifying student face for:", studentData.full_name);
+      console.log("Student ID:", studentData.id);
+      console.log("Class ID:", classId);
+      console.log("Lecture ID:", lectureId);
       
       // For this demo, we'll simulate verification with a delay
       setTimeout(async () => {
@@ -264,6 +317,8 @@ const FaceVerification: React.FC<FaceVerificationProps> = ({
               setVerificationStatus('failed');
               return;
             }
+            
+            console.log("Attendance recorded successfully for student:", studentData.id);
           }
           
           setVerificationStatus(isVerified ? 'success' : 'failed');

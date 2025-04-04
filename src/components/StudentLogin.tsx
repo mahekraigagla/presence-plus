@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
@@ -47,6 +48,8 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
     }, 50);
     
     try {
+      console.log("Attempting to log in with email:", email);
+      
       // Authenticate with Supabase
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
@@ -56,6 +59,8 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
       if (authError) throw authError;
       
       if (data.user) {
+        console.log("User authenticated successfully:", data.user.id);
+        
         // Get student details
         const { data: studentData, error: studentError } = await supabase
           .from('students')
@@ -64,6 +69,8 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
           .single();
         
         if (studentError) {
+          console.log("No student profile found, checking if teacher...");
+          
           // Check if it's a teacher account instead
           const { data: teacherData, error: teacherError } = await supabase
             .from('teachers')
@@ -72,8 +79,11 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
             .single();
           
           if (teacherError) {
+            console.error("No profile found:", teacherError);
             throw new Error('No profile found. Please sign up first.');
           }
+          
+          console.log("Teacher profile found:", teacherData);
           
           // If it's a teacher, store teacher data and redirect to teacher dashboard
           localStorage.setItem('currentTeacher', JSON.stringify(teacherData));
@@ -87,6 +97,8 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
           return;
         }
         
+        console.log("Student profile found:", studentData);
+        
         // Store current student data in localStorage for UI purposes
         localStorage.setItem('currentStudent', JSON.stringify(studentData));
         
@@ -99,6 +111,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
         navigate('/student-dashboard');
       }
     } catch (error: any) {
+      console.error("Login error:", error);
       setError(error.message || 'Invalid email or password');
       toast({
         title: "Login failed",

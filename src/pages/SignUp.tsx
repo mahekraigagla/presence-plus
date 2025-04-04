@@ -14,7 +14,7 @@ const SignUp = () => {
   const { toast } = useToast();
 
   const handleSignupComplete = () => {
-    // Redirect to login page after signup
+    // Redirect to login page after signup (changed from dashboard)
     toast({
       title: 'Registration Complete',
       description: 'Your account has been created. Please log in to continue.',

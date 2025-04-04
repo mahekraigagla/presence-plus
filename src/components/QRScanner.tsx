@@ -29,12 +29,14 @@ const QRScanner: React.FC<QRScannerProps> = ({ onClose, studentId }) => {
       setScanError('');
       setCameraError(null);
       
+      console.log("Starting QR scanner camera...");
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'environment',
           width: { ideal: 1280 },
           height: { ideal: 720 }
-        } 
+        },
+        audio: false
       });
       
       if (videoRef.current) {
@@ -43,7 +45,9 @@ const QRScanner: React.FC<QRScannerProps> = ({ onClose, studentId }) => {
         videoRef.current.playsInline = true;
         
         videoRef.current.onloadedmetadata = () => {
+          console.log("Video metadata loaded");
           if (videoRef.current) {
+            console.log("Starting video playback for QR scanner");
             videoRef.current.play()
               .then(() => {
                 console.log("QR scanner video started successfully");
@@ -59,6 +63,8 @@ const QRScanner: React.FC<QRScannerProps> = ({ onClose, studentId }) => {
               });
           }
         };
+      } else {
+        console.error("Video ref is null");
       }
     } catch (error) {
       console.error("Camera access error:", error);
@@ -84,6 +90,7 @@ const QRScanner: React.FC<QRScannerProps> = ({ onClose, studentId }) => {
   };
 
   const stopScanner = () => {
+    console.log("Stopping QR scanner");
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       const tracks = stream.getTracks();
