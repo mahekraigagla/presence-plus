@@ -10,8 +10,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Eye, EyeOff, UserPlus, Camera, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, Camera, RefreshCw, AlertCircle, CheckCircle2, InfoIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface StudentSignupProps {
   onComplete: () => void;
@@ -36,8 +37,18 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [photosTaken, setPhotosTaken] = useState(0);
+  const [skipFaceCapture, setSkipFaceCapture] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Authorized emails with auto-fill info
+  const demoStudents = [
+    { email: 'mahek.raigagla@somaiya.edu', password: '123456789' },
+    { email: 'jiya.mehta@gmail.com', password: '123456789' },
+    { email: 'rahul@gmail.com', password: '123456789' },
+    { email: 'manavi.k@gmail.com', password: '123456789' },
+    { email: 'pratham.shah@gmail.com', password: '123456789' },
+  ];
   
   const form = useForm<z.infer<typeof studentSchema>>({
     resolver: zodResolver(studentSchema),
@@ -50,6 +61,19 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       year: '',
     },
   });
+
+  // Watch for email changes to auto-fill password for demo accounts
+  useEffect(() => {
+    const subscription = form.watch((value) => {
+      if (value.email) {
+        const demoStudent = demoStudents.find(student => student.email === value.email);
+        if (demoStudent) {
+          form.setValue('password', demoStudent.password);
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   // Stop camera when component unmounts
   useEffect(() => {
@@ -87,16 +111,18 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         videoRef.current.srcObject = stream;
         
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play()
-            .then(() => {
-              console.log("Camera started successfully for face registration");
-              setIsCapturing(true);
-            })
-            .catch(err => {
-              console.error("Error starting camera:", err);
-              setCameraError("Failed to start camera. Please check your permissions.");
-              setIsCapturing(false);
-            });
+          if (videoRef.current) {
+            videoRef.current.play()
+              .then(() => {
+                console.log("Camera started successfully for face registration");
+                setIsCapturing(true);
+              })
+              .catch(err => {
+                console.error("Error starting camera:", err);
+                setCameraError("Failed to start camera. Please check your permissions.");
+                setIsCapturing(false);
+              });
+          }
         };
       }
     } catch (err) {
@@ -176,31 +202,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   };
 
   const onDetailsSubmit = async (data: z.infer<typeof studentSchema>) => {
-    // First, check if the email already exists
-    const { data: existingUsers, error: checkError } = await supabase
-      .from('students')
-      .select('email')
-      .eq('email', data.email);
-    
-    if (checkError) {
-      console.error("Error checking existing user:", checkError);
-      toast({
-        title: "Signup Error",
-        description: "Could not verify email uniqueness. Please try again.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    if (existingUsers && existingUsers.length > 0) {
-      toast({
-        title: "Account Already Exists",
-        description: "An account with this email already exists. Please log in instead.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
     // Proceed to face capture
     setCurrentStep('face-capture');
   };
@@ -211,10 +212,10 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
     try {
       const data = form.getValues();
       
-      if (capturedImages.length === 0) {
+      if (capturedImages.length === 0 && !skipFaceCapture) {
         toast({
           title: "Face Registration Required",
-          description: "Please capture your face photos before completing signup.",
+          description: "Please capture your face photos or click 'Skip Face Registration'.",
           variant: "destructive"
         });
         setIsSubmitting(false);
@@ -240,7 +241,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         throw new Error("Failed to create user account.");
       }
       
-      // Store student details with face image
+      // Store student details with face image if provided
       const { error: studentError } = await supabase
         .from('students')
         .insert({
@@ -250,8 +251,8 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
           roll_number: data.rollNumber,
           department: data.department,
           year: data.year,
-          face_image: capturedImages[0], // Store first image
-          face_registered: true
+          face_image: capturedImages.length > 0 ? capturedImages[0] : null, // Store first image or null
+          face_registered: capturedImages.length > 0
         });
       
       if (studentError) {
@@ -284,6 +285,24 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       <CardContent className="pt-6">
         {currentStep === 'details' ? (
           <Form {...form}>
+            <div className="mb-6">
+              <Alert>
+                <InfoIcon className="h-4 w-4" />
+                <AlertTitle>Demo Accounts</AlertTitle>
+                <AlertDescription>
+                  <p>The following student accounts are pre-configured (password: 123456789):</p>
+                  <ul className="text-xs mt-1 space-y-1">
+                    {demoStudents.map(student => (
+                      <li key={student.email} className="cursor-pointer hover:text-primary" 
+                          onClick={() => form.setValue('email', student.email)}>
+                        {student.email}
+                      </li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            </div>
+          
             <form onSubmit={form.handleSubmit(onDetailsSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
@@ -517,13 +536,23 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
             
             <div className="flex flex-col space-y-4">
               {!isCapturing && capturedImages.length === 0 ? (
-                <Button 
-                  onClick={startCamera} 
-                  className="bg-indigo-600 hover:bg-indigo-700"
-                >
-                  <Camera className="mr-2 h-4 w-4" />
-                  Start Camera
-                </Button>
+                <div className="space-y-3">
+                  <Button 
+                    onClick={startCamera} 
+                    className="w-full bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    <Camera className="mr-2 h-4 w-4" />
+                    Start Camera
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={() => setSkipFaceCapture(true)}
+                    className="w-full"
+                  >
+                    Skip Face Registration
+                  </Button>
+                </div>
               ) : isCapturing ? (
                 <div className="grid grid-cols-2 gap-2">
                   <Button
@@ -580,13 +609,14 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                   Back to Details
                 </Button>
                 
-                {capturedImages.length > 0 && capturedImages.length < 3 && (
+                {(skipFaceCapture || (capturedImages.length > 0 && capturedImages.length < 3)) && (
                   <Button
-                    variant="outline"
+                    variant={skipFaceCapture ? "default" : "outline"}
                     onClick={completeSignup}
-                    disabled={isSubmitting || capturedImages.length === 0}
+                    disabled={isSubmitting}
+                    className={skipFaceCapture ? "bg-green-600 hover:bg-green-700" : ""}
                   >
-                    {isSubmitting ? "Creating Account..." : "Complete with Current Photos"}
+                    {isSubmitting ? "Creating Account..." : "Complete Registration"}
                   </Button>
                 )}
               </div>

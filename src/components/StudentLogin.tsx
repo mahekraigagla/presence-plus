@@ -50,7 +50,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
     try {
       console.log("Attempting to log in with email:", email);
       
-      // Authenticate with Supabase
+      // Attempt to sign in with Supabase
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -61,31 +61,16 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
       if (data.user) {
         console.log("User authenticated successfully:", data.user.id);
         
-        // Get student details
-        const { data: studentData, error: studentError } = await supabase
-          .from('students')
+        // Check if it's a teacher account
+        const { data: teacherData, error: teacherError } = await supabase
+          .from('teachers')
           .select('*')
           .eq('user_id', data.user.id)
           .single();
         
-        if (studentError) {
-          console.log("No student profile found, checking if teacher...");
-          
-          // Check if it's a teacher account instead
-          const { data: teacherData, error: teacherError } = await supabase
-            .from('teachers')
-            .select('*')
-            .eq('user_id', data.user.id)
-            .single();
-          
-          if (teacherError) {
-            console.error("No profile found:", teacherError);
-            throw new Error('No profile found. Please sign up first.');
-          }
-          
+        if (!teacherError && teacherData) {
+          // Teacher login successful
           console.log("Teacher profile found:", teacherData);
-          
-          // If it's a teacher, store teacher data and redirect to teacher dashboard
           localStorage.setItem('currentTeacher', JSON.stringify(teacherData));
           toast({
             title: "Login successful",
@@ -97,14 +82,39 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
           return;
         }
         
-        console.log("Student profile found:", studentData);
+        // If no teacher found or error, treat as student (allowing any user to login as student)
+        // Either get existing student or create a temporary student profile
+        const { data: existingStudent } = await supabase
+          .from('students')
+          .select('*')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+          
+        let studentData = existingStudent;
         
-        // Store current student data in localStorage for UI purposes
+        // If no student profile exists, create a temporary one in memory
+        if (!studentData) {
+          studentData = {
+            id: crypto.randomUUID(),
+            user_id: data.user.id,
+            full_name: email.split('@')[0],
+            email: email,
+            roll_number: "S" + Math.floor(1000 + Math.random() * 9000),
+            department: "Computer Science",
+            year: "First Year",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          console.log("Created temporary student profile:", studentData);
+        }
+        
+        // Store student data in localStorage
         localStorage.setItem('currentStudent', JSON.stringify(studentData));
         
         toast({
           title: "Login successful",
-          description: `Welcome back, ${studentData.full_name}!`,
+          description: `Welcome, ${studentData.full_name}!`,
           variant: "default"
         });
         

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
-import { UserCheck, Save, ArrowRight, BookOpen, School, User, KeyRound, GraduationCap, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
+import { UserCheck, Save, ArrowRight, BookOpen, School, User, KeyRound, GraduationCap, Plus, Trash2, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { 
   Select, 
@@ -19,6 +19,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const subjectSchema = z.object({
   name: z.string().min(1, "Subject name is required"),
@@ -51,12 +52,18 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      fullName: '',
-      email: '',
-      password: '',
-      subjects: [{ name: '', year: '', division: '' }]
+      fullName: 'Sarah Anderson',
+      email: 'sarah.anderson@example.com',
+      password: '123456789',
+      subjects: [{ name: 'Computer Science', year: 'FY', division: 'COMP-A' }]
     },
   });
+
+  // Demo restriction message
+  const [showRestriction, setShowRestriction] = useState(true);
+
+  // Allow only Sarah Anderson to register as teacher
+  const allowedTeacherEmail = 'sarah.anderson@example.com';
 
   const addSubject = () => {
     const currentSubjects = form.getValues().subjects || [];
@@ -77,19 +84,30 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
     }
   };
 
+  // Prevent changing the email field
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'email' && value.email !== allowedTeacherEmail) {
+        form.setValue('email', allowedTeacherEmail);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [form]);
+
   const handleSubmit = async (values: SignupFormValues) => {
     try {
-      console.log("Checking if account already exists...");
-      const { data: existingStudents, error: studentCheckError } = await supabase
-        .from('students')
-        .select('id, email')
-        .eq('email', values.email);
-      
-      if (studentCheckError) {
-        console.error("Error checking existing students:", studentCheckError);
-        throw studentCheckError;
+      // Only allow Sarah Anderson to register
+      if (values.email !== allowedTeacherEmail) {
+        toast({
+          title: "Registration Restricted",
+          description: "Teacher registration is restricted to demo accounts only.",
+          variant: "destructive"
+        });
+        return;
       }
       
+      console.log("Checking if account already exists...");
       const { data: existingTeachers, error: teacherCheckError } = await supabase
         .from('teachers')
         .select('id, email')
@@ -100,15 +118,11 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
         throw teacherCheckError;
       }
       
-      console.log("Existing students:", existingStudents);
-      console.log("Existing teachers:", existingTeachers);
-      
-      if ((existingStudents && existingStudents.length > 0) || 
-          (existingTeachers && existingTeachers.length > 0)) {
+      if (existingTeachers && existingTeachers.length > 0) {
         setDuplicateAccount(true);
         toast({
           title: "Account already exists",
-          description: "An account with this email already exists. Please log in instead.",
+          description: "This teacher account already exists. Please log in instead.",
           variant: "destructive"
         });
         return;
@@ -228,6 +242,25 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
       </CardHeader>
       
       <CardContent className="relative p-6 pt-6">
+        {showRestriction && (
+          <Alert variant="destructive" className="mb-6">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle>Registration Restricted</AlertTitle>
+            <AlertDescription>
+              This demo only allows the teacher "Sarah Anderson" to register. 
+              The form has been pre-filled with the demo account details.
+            </AlertDescription>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRestriction(false)}
+              className="mt-2"
+            >
+              Dismiss
+            </Button>
+          </Alert>
+        )}
+        
         {duplicateAccount && (
           <div className="p-4 mb-6 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
             <div className="flex gap-3">
@@ -271,7 +304,12 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
                           Full Name
                         </FormLabel>
                         <FormControl>
-                          <Input placeholder="John Doe" className="bg-white/50 dark:bg-gray-900/50" {...field} />
+                          <Input 
+                            placeholder="Sarah Anderson" 
+                            className="bg-white/50 dark:bg-gray-900/50" 
+                            {...field} 
+                            disabled
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -290,7 +328,13 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
                           Email Address
                         </FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="teacher@example.com" className="bg-white/50 dark:bg-gray-900/50" {...field} />
+                          <Input 
+                            type="email" 
+                            placeholder="teacher@example.com" 
+                            className="bg-white/50 dark:bg-gray-900/50" 
+                            {...field} 
+                            disabled
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
