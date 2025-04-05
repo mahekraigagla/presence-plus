@@ -39,6 +39,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   const [skipFaceCapture, setSkipFaceCapture] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const { toast } = useToast();
   
   const form = useForm<z.infer<typeof studentSchema>>({
@@ -74,34 +75,52 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
 
   const startCamera = async () => {
     try {
+      console.log("Starting camera...");
       setCameraError(null);
       
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        },
-        audio: false
-      });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'user',
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        });
         
-        videoRef.current.onloadedmetadata = () => {
-          if (videoRef.current) {
-            videoRef.current.play()
-              .then(() => {
-                console.log("Camera started successfully for face registration");
-                setIsCapturing(true);
-              })
-              .catch(err => {
-                console.error("Error starting camera:", err);
-                setCameraError("Failed to start camera. Please check your permissions.");
-                setIsCapturing(false);
-              });
-          }
-        };
+        console.log("Media stream obtained:", mediaStream);
+        setStream(mediaStream);
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          
+          videoRef.current.onloadedmetadata = () => {
+            console.log("Video metadata loaded");
+            if (videoRef.current) {
+              videoRef.current.play()
+                .then(() => {
+                  console.log("Camera started successfully");
+                  setIsCapturing(true);
+                })
+                .catch(err => {
+                  console.error("Error playing video:", err);
+                  setCameraError("Failed to start camera. Please check your permissions.");
+                  setIsCapturing(false);
+                });
+            }
+          };
+        } else {
+          console.error("Video ref is null");
+          setCameraError("Video element not found");
+        }
+      } else {
+        console.error("getUserMedia not supported");
+        setCameraError("Your browser does not support camera access");
+        toast({
+          title: "Browser Not Supported",
+          description: "Your browser does not support camera access",
+          variant: "destructive"
+        });
       }
     } catch (err) {
       console.error("Camera access error:", err);
@@ -127,11 +146,16 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      const tracks = stream.getTracks();
-      
-      tracks.forEach(track => track.stop());
+    console.log("Stopping camera...");
+    if (stream) {
+      stream.getTracks().forEach(track => {
+        console.log("Stopping track:", track);
+        track.stop();
+      });
+      setStream(null);
+    }
+    
+    if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
     
@@ -143,19 +167,28 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   };
 
   const captureImage = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current) {
+      console.error("Video or canvas ref is null");
+      return;
+    }
     
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    console.log("Video dimensions:", video.videoWidth, video.videoHeight);
+    
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
     
     const context = canvas.getContext('2d');
-    if (!context) return;
+    if (!context) {
+      console.error("Could not get canvas context");
+      return;
+    }
     
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = canvas.toDataURL('image/png');
+    console.log("Image captured");
     
     setCapturedImages(prev => [...prev, imageData]);
     setPhotosTaken(prev => prev + 1);
@@ -189,16 +222,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
     
     try {
       const data = form.getValues();
-      
-      if (capturedImages.length === 0 && !skipFaceCapture) {
-        toast({
-          title: "Face Registration Required",
-          description: "Please capture your face photos or click 'Skip Face Registration'.",
-          variant: "destructive"
-        });
-        setIsSubmitting(false);
-        return;
-      }
       
       // Create Supabase auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -437,6 +460,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                     className="w-full h-full object-cover"
                     muted
                     playsInline
+                    autoPlay
                   />
                   
                   {countdown !== null && countdown > 0 && (
@@ -507,7 +531,10 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                   
                   <Button
                     variant="outline"
-                    onClick={() => setSkipFaceCapture(true)}
+                    onClick={() => {
+                      setSkipFaceCapture(true);
+                      completeSignup();
+                    }}
                     className="w-full"
                   >
                     Skip Face Registration

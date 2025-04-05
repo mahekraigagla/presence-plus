@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, User, Check, AlertCircle, CameraOff, RefreshCw, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
   const [cameraError, setCameraError] = useState('');
   const [countdown, setCountdown] = useState<number | null>(null);
   const [storedFaceImage, setStoredFaceImage] = useState<string | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -64,11 +66,11 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
 
   useEffect(() => {
     return () => {
-      if (isCapturing) {
-        stopCamera();
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [isCapturing]);
+  }, [stream]);
 
   useEffect(() => {
     if (verificationStatus === 'verifying') {
@@ -100,10 +102,11 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
 
   const startCamera = async () => {
     try {
+      console.log("Starting camera...");
       setCameraError('');
       setIsCameraAvailable(true);
       
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: "user",
           width: { ideal: 640 },
@@ -111,9 +114,13 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
         } 
       });
       
+      console.log("Media stream obtained:", mediaStream);
+      setStream(mediaStream);
+      
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+        videoRef.current.srcObject = mediaStream;
         videoRef.current.onloadedmetadata = () => {
+          console.log("Video metadata loaded");
           videoRef.current?.play().catch(err => {
             console.error("Error playing video:", err);
             setCameraError("Could not start video stream. Please check your permissions.");
@@ -121,6 +128,8 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
           });
           setIsCapturing(true);
         };
+      } else {
+        console.error("Video ref is null");
       }
     } catch (err) {
       console.error("Error accessing camera:", err);
@@ -149,14 +158,20 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      const tracks = stream.getTracks();
-      
-      tracks.forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-      setIsCapturing(false);
+    console.log("Stopping camera...");
+    if (stream) {
+      stream.getTracks().forEach(track => {
+        console.log("Stopping track:", track);
+        track.stop();
+      });
+      setStream(null);
     }
+    
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    
+    setIsCapturing(false);
   };
 
   const startCountdown = () => {
@@ -168,13 +183,16 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      console.log("Video dimensions:", video.videoWidth, video.videoHeight);
+      
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
       
       const context = canvas.getContext('2d');
       if (context) {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const image = canvas.toDataURL('image/png');
+        console.log("Image captured successfully");
         setCapturedImage(image);
         stopCamera();
         setCountdown(null);
@@ -184,7 +202,11 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
         } else {
           verifyFace(image);
         }
+      } else {
+        console.error("Could not get canvas context");
       }
+    } else {
+      console.error("Video or canvas ref is null");
     }
   };
 
@@ -251,6 +273,8 @@ const FaceRecognition: React.FC<FaceRecognitionProps> = ({
       }
       
       setTimeout(() => {
+        // In a real system, this would use OpenCV for face comparison
+        // For demo purposes, we're simulating a successful verification
         const isVerified = true;
         
         setVerificationStatus(isVerified ? 'success' : 'failed');
