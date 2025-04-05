@@ -7,18 +7,31 @@ import TeacherSignup from '@/components/TeacherSignup';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Navbar from '@/components/Navbar';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const SignUp = () => {
   const [activeTab, setActiveTab] = useState<'student' | 'teacher'>('student');
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleSignupComplete = () => {
-    // Redirect to login page after signup
+    // Clear any previous errors
+    setError(null);
+    
+    // Show success toast
     toast({
       title: 'Registration Complete',
       description: 'Your account has been created. Please log in to continue.',
+      variant: 'success'
     });
+    
+    // Redirect to login page after signup
+    navigate('/login');
+  };
+
+  const handleCancel = () => {
     navigate('/login');
   };
 
@@ -35,6 +48,14 @@ const SignUp = () => {
         >
           <div className="relative z-10">
             <div className="absolute -z-10 w-96 h-96 rounded-full bg-primary/10 blur-3xl top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2"></div>
+            
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Signup Failed</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             
             <Tabs 
               defaultValue="student" 
@@ -55,14 +76,14 @@ const SignUp = () => {
               <TabsContent value="student">
                 <StudentSignup 
                   onComplete={handleSignupComplete} 
-                  onCancel={() => navigate('/login')}
+                  onCancel={handleCancel}
                 />
               </TabsContent>
               
               <TabsContent value="teacher">
                 <TeacherSignup 
                   onComplete={handleSignupComplete} 
-                  onCancel={() => navigate('/login')}
+                  onCancel={handleCancel}
                 />
               </TabsContent>
             </Tabs>
