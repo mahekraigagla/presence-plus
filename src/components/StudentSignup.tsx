@@ -48,6 +48,27 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
     setIsSubmitting(true);
     
     try {
+      // First check if user already exists
+      const { data: existingUsers, error: checkError } = await supabase
+        .from('students')
+        .select('email')
+        .eq('email', data.email)
+        .limit(1);
+      
+      if (checkError) {
+        console.error("Error checking existing user:", checkError);
+      }
+      
+      if (existingUsers && existingUsers.length > 0) {
+        toast({
+          title: "User Already Exists",
+          description: "A student with this email already exists. Please login or use a different email.",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
       // Create Supabase auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
@@ -55,11 +76,22 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         options: {
           data: {
             full_name: data.fullName
-          }
+          },
+          emailRedirectTo: window.location.origin + '/login'
         }
       });
       
       if (authError) {
+        // Check if the error is about existing user
+        if (authError.message.includes('User already registered')) {
+          toast({
+            title: "User Already Exists",
+            description: "A user with this email already exists. Please login or use a different email.",
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
         throw new Error(authError.message);
       }
       
@@ -67,8 +99,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         throw new Error("Failed to create user account.");
       }
       
-      // Since we removed RLS restrictions, we need to use an admin function or direct SQL
-      // Store student details - use direct insert with service role key
+      // Store student details
       const { error: studentError } = await supabase
         .from('students')
         .insert({
@@ -83,19 +114,18 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       
       if (studentError) {
         console.error("Student creation error:", studentError);
-        // Despite the error, we'll still allow registration to complete
-        // This is a temporary workaround until proper RLS is configured
-        toast({
-          title: "Account Created",
-          description: "Your account has been created successfully. You can now log in.",
-        });
+        // Check if this is a unique constraint error (user already exists)
+        if (studentError.code === '23505') {
+          toast({
+            title: "User Already Exists",
+            description: "A student with this email already exists. Please login instead.",
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
         
-        // Sign out the user since we want them to explicitly log in
-        await supabase.auth.signOut();
-        
-        // Signal completion to parent
-        onComplete();
-        return;
+        throw studentError;
       }
       
       // Success!

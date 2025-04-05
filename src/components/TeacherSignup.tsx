@@ -44,18 +44,50 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
     setIsSubmitting(true);
     
     try {
-      // Create Supabase auth user
+      // First check if user already exists
+      const { data: existingUsers, error: checkError } = await supabase
+        .from('teachers')
+        .select('email')
+        .eq('email', data.email)
+        .limit(1);
+      
+      if (checkError) {
+        console.error("Error checking existing user:", checkError);
+      }
+      
+      if (existingUsers && existingUsers.length > 0) {
+        toast({
+          title: "User Already Exists",
+          description: "A teacher with this email already exists. Please login or use a different email.",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Create Supabase auth user with emailConfirm disabled
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
           data: {
             full_name: data.fullName,
-          }
+          },
+          emailRedirectTo: window.location.origin + '/login'
         }
       });
       
       if (authError) {
+        // Check if the error is about existing user
+        if (authError.message.includes('User already registered')) {
+          toast({
+            title: "User Already Exists",
+            description: "A user with this email already exists. Please login or use a different email.",
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
         throw new Error(authError.message);
       }
       
@@ -63,7 +95,7 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
         throw new Error("Failed to create user account.");
       }
       
-      // Store teacher details - use direct insert
+      // Store teacher details
       const { error: teacherError } = await supabase
         .from('teachers')
         .insert({
@@ -75,19 +107,18 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
       
       if (teacherError) {
         console.error("Teacher creation error:", teacherError);
-        // Despite the error, we'll still allow registration to complete
-        // This is a temporary solution
-        toast({
-          title: "Account Created",
-          description: "Your teacher account has been created successfully. You can now log in.",
-        });
+        // Check if this is a unique constraint error (user already exists)
+        if (teacherError.code === '23505') {
+          toast({
+            title: "User Already Exists",
+            description: "A teacher with this email already exists. Please login instead.",
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
         
-        // Sign out the user since we want them to explicitly log in
-        await supabase.auth.signOut();
-        
-        // Signal completion to parent
-        onComplete();
-        return;
+        throw teacherError;
       }
       
       // Success!

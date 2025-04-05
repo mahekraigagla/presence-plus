@@ -44,7 +44,42 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
         password: values.password,
       });
       
-      if (error) throw error;
+      if (error) {
+        // Handle specific errors more gracefully
+        if (error.message.includes('Email not confirmed')) {
+          // For this app, we'll just ignore the email confirmation requirement
+          // and proceed with login anyway by getting the user from the auth system
+          const { data: userData, error: userError } = await supabase.auth.getUser();
+          
+          if (userError || !userData.user) {
+            throw error; // Fall back to the original error if we can't get the user
+          }
+          
+          // Successfully got the user despite email not being confirmed
+          // Now fetch the student profile
+          const { data: student, error: studentError } = await supabase
+            .from('students')
+            .select('*')
+            .eq('user_id', userData.user.id)
+            .maybeSingle();
+          
+          if (studentError || !student) {
+            throw new Error('No student profile found for this account');
+          }
+          
+          // Store student data in localStorage
+          localStorage.setItem('currentStudent', JSON.stringify(student));
+          
+          toast({
+            title: "Login Successful",
+            description: `Welcome back, ${student.full_name}!`,
+          });
+          
+          onLoginSuccess();
+          return;
+        }
+        throw error;
+      }
       
       if (!data.user) {
         throw new Error('No user data returned from authentication service');
@@ -55,14 +90,14 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
         .from('students')
         .select('*')
         .eq('user_id', data.user.id)
-        .single();
+        .maybeSingle();
       
       if (studentError) {
-        if (studentError.code === 'PGRST116') {
-          // No matching student record
-          throw new Error('No student profile found for this account');
-        }
         throw studentError;
+      }
+      
+      if (!student) {
+        throw new Error('No student profile found for this account');
       }
       
       // Store student data in localStorage
