@@ -11,12 +11,9 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { AttendanceTableProps } from '@/integrations/types/attendance-types';
 
-interface AttendanceTableProps {
-  studentId: string;
-}
-
-const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId }) => {
+const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId, classId, date }) => {
   const [loading, setLoading] = useState(true);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [hasRecords, setHasRecords] = useState(false);
@@ -24,12 +21,9 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId }) => {
   useEffect(() => {
     const fetchAttendanceRecords = async () => {
       try {
-        if (!studentId) return;
-        
         setLoading(true);
         
-        // Fetch attendance records for the student
-        const { data, error } = await supabase
+        let query = supabase
           .from('attendance_records')
           .select(`
             *,
@@ -39,8 +33,21 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId }) => {
               year
             )
           `)
-          .eq('student_id', studentId)
           .order('timestamp', { ascending: false });
+        
+        // Apply filters based on provided props
+        if (studentId) {
+          query = query.eq('student_id', studentId);
+        }
+        
+        if (classId) {
+          query = query.eq('class_id', classId);
+        }
+        
+        // Note: In a real app, you would add date filtering here
+        // if (date) { ... filter by date ... }
+        
+        const { data, error } = await query;
         
         if (error) throw error;
         
@@ -58,7 +65,7 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId }) => {
     };
     
     fetchAttendanceRecords();
-  }, [studentId]);
+  }, [studentId, classId, date]);
 
   if (loading) {
     return (
@@ -83,7 +90,7 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ studentId }) => {
         </div>
         <h3 className="text-lg font-medium">No attendance records found</h3>
         <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-          Please mark your first attendance to see your attendance history here.
+          {studentId ? "Please mark your first attendance to see your attendance history here." : "No attendance records available for this class yet."}
         </p>
       </div>
     );

@@ -1,10 +1,13 @@
 
 export interface AttendanceStatsProps {
-  studentId: string;
+  studentId?: string;
+  role?: string;
 }
 
 export interface AttendanceTableProps {
-  studentId: string;
+  studentId?: string;
+  classId?: string;
+  date?: string;
 }
 
 export interface StudentData {

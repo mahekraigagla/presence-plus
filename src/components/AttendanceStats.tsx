@@ -5,12 +5,9 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { AttendanceStatsProps } from '@/integrations/types/attendance-types';
 
-interface AttendanceStatsProps {
-  studentId: string;
-}
-
-const AttendanceStats: React.FC<AttendanceStatsProps> = ({ studentId }) => {
+const AttendanceStats: React.FC<AttendanceStatsProps> = ({ studentId, role }) => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{
     present: number;
@@ -28,15 +25,23 @@ const AttendanceStats: React.FC<AttendanceStatsProps> = ({ studentId }) => {
   useEffect(() => {
     const fetchAttendanceStats = async () => {
       try {
-        if (!studentId) return;
-        
         setLoading(true);
         
-        // Fetch attendance records for the student
-        const { data: records, error } = await supabase
-          .from('attendance_records')
-          .select('*')
-          .eq('student_id', studentId);
+        let query = supabase.from('attendance_records').select('*');
+        
+        // If studentId is provided, filter by student
+        if (studentId) {
+          query = query.eq('student_id', studentId);
+        }
+        
+        // For teacher role, we might want to get all attendance records
+        // This is just placeholder logic - real implementation would depend on requirements
+        if (role === 'teacher') {
+          // No additional filter needed for teacher view
+          // Could add date ranges, specific classes, etc.
+        }
+        
+        const { data: records, error } = await query;
         
         if (error) throw error;
         
@@ -65,7 +70,7 @@ const AttendanceStats: React.FC<AttendanceStatsProps> = ({ studentId }) => {
     };
     
     fetchAttendanceStats();
-  }, [studentId]);
+  }, [studentId, role]);
 
   const chartData = [
     { name: 'Present', value: stats.present, color: '#22c55e' },
@@ -94,7 +99,10 @@ const AttendanceStats: React.FC<AttendanceStatsProps> = ({ studentId }) => {
         </div>
         <h3 className="text-lg font-medium">No attendance records found</h3>
         <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-          Please mark your first attendance to see statistics and data visualization here.
+          {role === 'teacher' 
+            ? "No attendance records available yet. Start a class session to collect attendance."
+            : "Please mark your first attendance to see statistics and data visualization here."
+          }
         </p>
       </div>
     );
