@@ -23,3 +23,10 @@ export interface StudentData {
   created_at: string;
   updated_at: string;
 }
+
+export interface OpenCVAttendanceData {
+  studentId: string;
+  classId: string;
+  lectureId: string;
+  timestamp: string;
+}

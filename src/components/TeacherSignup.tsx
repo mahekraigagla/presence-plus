@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
-import { UserCheck, Save, ArrowRight, BookOpen, School, User, KeyRound, GraduationCap, Plus, Trash2, Eye, EyeOff, ShieldAlert } from 'lucide-react';
+import { UserCheck, Save, ArrowRight, BookOpen, School, User, KeyRound, GraduationCap, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { 
   Select, 
@@ -19,7 +19,6 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const subjectSchema = z.object({
   name: z.string().min(1, "Subject name is required"),
@@ -52,18 +51,12 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      fullName: 'Sarah Anderson',
-      email: 'sarah.anderson@example.com',
-      password: '123456789',
-      subjects: [{ name: 'Computer Science', year: 'FY', division: 'COMP-A' }]
+      fullName: '',
+      email: '',
+      password: '',
+      subjects: [{ name: '', year: '', division: '' }]
     },
   });
-
-  // Demo restriction message
-  const [showRestriction, setShowRestriction] = useState(true);
-
-  // Allow only Sarah Anderson to register as teacher
-  const allowedTeacherEmail = 'sarah.anderson@example.com';
 
   const addSubject = () => {
     const currentSubjects = form.getValues().subjects || [];
@@ -84,29 +77,8 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
     }
   };
 
-  // Prevent changing the email field
-  useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name === 'email' && value.email !== allowedTeacherEmail) {
-        form.setValue('email', allowedTeacherEmail);
-      }
-    });
-    
-    return () => subscription.unsubscribe();
-  }, [form]);
-
   const handleSubmit = async (values: SignupFormValues) => {
     try {
-      // Only allow Sarah Anderson to register
-      if (values.email !== allowedTeacherEmail) {
-        toast({
-          title: "Registration Restricted",
-          description: "Teacher registration is restricted to demo accounts only.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
       console.log("Checking if account already exists...");
       const { data: existingTeachers, error: teacherCheckError } = await supabase
         .from('teachers')
@@ -242,25 +214,6 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
       </CardHeader>
       
       <CardContent className="relative p-6 pt-6">
-        {showRestriction && (
-          <Alert variant="destructive" className="mb-6">
-            <ShieldAlert className="h-4 w-4" />
-            <AlertTitle>Registration Restricted</AlertTitle>
-            <AlertDescription>
-              This demo only allows the teacher "Sarah Anderson" to register. 
-              The form has been pre-filled with the demo account details.
-            </AlertDescription>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowRestriction(false)}
-              className="mt-2"
-            >
-              Dismiss
-            </Button>
-          </Alert>
-        )}
-        
         {duplicateAccount && (
           <div className="p-4 mb-6 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
             <div className="flex gap-3">
@@ -305,10 +258,9 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
                         </FormLabel>
                         <FormControl>
                           <Input 
-                            placeholder="Sarah Anderson" 
+                            placeholder="Enter your full name" 
                             className="bg-white/50 dark:bg-gray-900/50" 
                             {...field} 
-                            disabled
                           />
                         </FormControl>
                         <FormMessage />
@@ -330,10 +282,9 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
                         <FormControl>
                           <Input 
                             type="email" 
-                            placeholder="teacher@example.com" 
+                            placeholder="Enter your email address" 
                             className="bg-white/50 dark:bg-gray-900/50" 
                             {...field} 
-                            disabled
                           />
                         </FormControl>
                         <FormMessage />

@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Camera, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface StudentSignupProps {
@@ -30,16 +30,6 @@ const studentSchema = z.object({
 const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentStep, setCurrentStep] = useState<'details' | 'face-capture'>('details');
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [capturedImages, setCapturedImages] = useState<string[]>([]);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [photosTaken, setPhotosTaken] = useState(0);
-  const [skipFaceCapture, setSkipFaceCapture] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const { toast } = useToast();
   
   const form = useForm<z.infer<typeof studentSchema>>({
@@ -54,175 +44,10 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
     },
   });
 
-  // Stop camera when component unmounts
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
-  // Handle countdown for auto-capture
-  useEffect(() => {
-    if (countdown === null || !isCapturing) return;
-    
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      captureImage();
-    }
-  }, [countdown, isCapturing]);
-
-  const startCamera = async () => {
-    try {
-      console.log("Starting camera...");
-      setCameraError(null);
-      
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            facingMode: 'user',
-            width: { ideal: 640 },
-            height: { ideal: 480 }
-          },
-          audio: false
-        });
-        
-        console.log("Media stream obtained:", mediaStream);
-        setStream(mediaStream);
-        
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-          
-          videoRef.current.onloadedmetadata = () => {
-            console.log("Video metadata loaded");
-            if (videoRef.current) {
-              videoRef.current.play()
-                .then(() => {
-                  console.log("Camera started successfully");
-                  setIsCapturing(true);
-                })
-                .catch(err => {
-                  console.error("Error playing video:", err);
-                  setCameraError("Failed to start camera. Please check your permissions.");
-                  setIsCapturing(false);
-                });
-            }
-          };
-        } else {
-          console.error("Video ref is null");
-          setCameraError("Video element not found");
-        }
-      } else {
-        console.error("getUserMedia not supported");
-        setCameraError("Your browser does not support camera access");
-        toast({
-          title: "Browser Not Supported",
-          description: "Your browser does not support camera access",
-          variant: "destructive"
-        });
-      }
-    } catch (err) {
-      console.error("Camera access error:", err);
-      let errorMessage = "Could not access camera. Please check your permissions.";
-      
-      if (err instanceof DOMException) {
-        if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-          errorMessage = "No camera found on your device.";
-        } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          errorMessage = "Camera access denied. Please allow camera access.";
-        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-          errorMessage = "Camera already in use. Close other apps that might be using it.";
-        }
-      }
-      
-      setCameraError(errorMessage);
-      toast({
-        title: "Camera Error",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const stopCamera = () => {
-    console.log("Stopping camera...");
-    if (stream) {
-      stream.getTracks().forEach(track => {
-        console.log("Stopping track:", track);
-        track.stop();
-      });
-      setStream(null);
-    }
-    
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    
-    setIsCapturing(false);
-  };
-
-  const startCountdown = () => {
-    setCountdown(3);
-  };
-
-  const captureImage = () => {
-    if (!videoRef.current || !canvasRef.current) {
-      console.error("Video or canvas ref is null");
-      return;
-    }
-    
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    console.log("Video dimensions:", video.videoWidth, video.videoHeight);
-    
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    
-    const context = canvas.getContext('2d');
-    if (!context) {
-      console.error("Could not get canvas context");
-      return;
-    }
-    
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = canvas.toDataURL('image/png');
-    console.log("Image captured");
-    
-    setCapturedImages(prev => [...prev, imageData]);
-    setPhotosTaken(prev => prev + 1);
-    setCountdown(null);
-    
-    // If we've taken 3 photos, stop the camera
-    if (photosTaken >= 2) { // This will be the 3rd photo (0, 1, 2)
-      stopCamera();
-    } else {
-      // Reset countdown for next photo
-      setTimeout(() => {
-        startCountdown();
-      }, 1000);
-    }
-  };
-
-  const resetCapture = () => {
-    setCapturedImages([]);
-    setPhotosTaken(0);
-    setCountdown(null);
-    startCamera();
-  };
-
-  const onDetailsSubmit = async (data: z.infer<typeof studentSchema>) => {
-    // Proceed to face capture
-    setCurrentStep('face-capture');
-  };
-
-  const completeSignup = async () => {
+  const onSubmit = async (data: z.infer<typeof studentSchema>) => {
     setIsSubmitting(true);
     
     try {
-      const data = form.getValues();
-      
       // Create Supabase auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
@@ -242,7 +67,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         throw new Error("Failed to create user account.");
       }
       
-      // Store student details with face image if provided
+      // Store student details
       const { error: studentError } = await supabase
         .from('students')
         .insert({
@@ -252,8 +77,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
           roll_number: data.rollNumber,
           department: data.department,
           year: data.year,
-          face_image: capturedImages.length > 0 ? capturedImages[0] : null, // Store first image or null
-          face_registered: capturedImages.length > 0
+          face_registered: false
         });
       
       if (studentError) {
@@ -265,6 +89,9 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         title: "Account Created",
         description: "Your account has been created successfully. You can now log in.",
       });
+      
+      // Sign out the user since we want them to explicitly log in
+      await supabase.auth.signOut();
       
       // Signal completion to parent
       onComplete();
@@ -284,332 +111,161 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   return (
     <Card className="border-0 shadow-md w-full max-w-lg mx-auto bg-white/80 backdrop-blur-sm dark:bg-gray-800/80">
       <CardContent className="pt-6">
-        {currentStep === 'details' ? (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onDetailsSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="fullName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Full Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter your full name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="Enter your email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input 
-                          type={showPassword ? "text" : "password"} 
-                          placeholder="Create a password" 
-                          {...field} 
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="rollNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Roll Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter your roll number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="department"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Department</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select department" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Computer Science">Computer Science</SelectItem>
-                          <SelectItem value="Information Technology">Information Technology</SelectItem>
-                          <SelectItem value="Electrical Engineering">Electrical Engineering</SelectItem>
-                          <SelectItem value="Mechanical Engineering">Mechanical Engineering</SelectItem>
-                          <SelectItem value="Civil Engineering">Civil Engineering</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="year"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Year</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select year" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="First Year">First Year</SelectItem>
-                          <SelectItem value="Second Year">Second Year</SelectItem>
-                          <SelectItem value="Third Year">Third Year</SelectItem>
-                          <SelectItem value="Fourth Year">Fourth Year</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="flex justify-between pt-4">
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  onClick={onCancel}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit"
-                  className="bg-primary"
-                >
-                  Next: Face Registration
-                </Button>
-              </div>
-            </form>
-          </Form>
-        ) : (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="space-y-6"
-          >
-            <div className="text-center space-y-2">
-              <h3 className="text-lg font-medium">Face Registration</h3>
-              <p className="text-sm text-muted-foreground">
-                Please capture 3 photos of your face for identity verification
-              </p>
-              
-              <div className="text-sm bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 p-3 rounded-md">
-                <div className="flex items-center space-x-2">
-                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                  <p>Make sure your face is clearly visible and well-lit</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="relative aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-              {isCapturing ? (
-                <div className="relative w-full h-full">
-                  <video
-                    ref={videoRef}
-                    className="w-full h-full object-cover"
-                    muted
-                    playsInline
-                    autoPlay
-                  />
-                  
-                  {countdown !== null && countdown > 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-24 h-24 rounded-full bg-black/70 flex items-center justify-center text-white text-4xl font-bold">
-                        {countdown}
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/50 text-white text-center">
-                    Photo {photosTaken + 1} of 3
-                  </div>
-                </div>
-              ) : capturedImages.length > 0 ? (
-                <div className="relative w-full h-full">
-                  <div className="grid grid-cols-3 gap-1 h-full">
-                    {[0, 1, 2].map((index) => (
-                      <div key={index} className="relative h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
-                        {index < capturedImages.length ? (
-                          <img 
-                            src={capturedImages[index]} 
-                            alt={`Captured face ${index + 1}`} 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="text-gray-400 text-xs">Photo {index + 1}</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="absolute top-2 right-2">
-                    <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      {capturedImages.length}/3 captured
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full">
-                  <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mb-2">
-                    <Camera className="h-8 w-8 text-gray-500" />
-                  </div>
-                  <p className="text-sm text-gray-500">Camera preview will appear here</p>
-                  
-                  {cameraError && (
-                    <div className="mt-4 text-sm text-red-500 bg-red-50 dark:bg-red-900/30 p-2 rounded max-w-xs text-center">
-                      {cameraError}
-                    </div>
-                  )}
-                </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="fullName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter your full name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-            </div>
+            />
             
-            <canvas ref={canvasRef} className="hidden" />
-            
-            <div className="flex flex-col space-y-4">
-              {!isCapturing && capturedImages.length === 0 ? (
-                <div className="space-y-3">
-                  <Button 
-                    onClick={startCamera} 
-                    className="w-full bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    <Camera className="mr-2 h-4 w-4" />
-                    Start Camera
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSkipFaceCapture(true);
-                      completeSignup();
-                    }}
-                    className="w-full"
-                  >
-                    Skip Face Registration
-                  </Button>
-                </div>
-              ) : isCapturing ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    onClick={startCountdown}
-                    disabled={countdown !== null}
-                    className="bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    {countdown !== null 
-                      ? `Taking photo in ${countdown}...` 
-                      : "Capture Photo"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={stopCamera}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {capturedImages.length === 3 ? (
-                    <Button
-                      onClick={completeSignup}
-                      className="bg-green-600 hover:bg-green-700 col-span-2"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? "Creating Account..." : "Complete Registration"}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={startCamera}
-                      className="bg-indigo-600 hover:bg-indigo-700"
-                    >
-                      Continue Capturing
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    onClick={resetCapture}
-                    disabled={isSubmitting}
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Reset Photos
-                  </Button>
-                </div>
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="Enter your email" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-              
-              <div className="flex justify-between">
-                <Button
-                  variant="ghost"
-                  onClick={() => setCurrentStep('details')}
-                  disabled={isSubmitting}
-                >
-                  Back to Details
-                </Button>
-                
-                {(skipFaceCapture || (capturedImages.length > 0 && capturedImages.length < 3)) && (
-                  <Button
-                    variant={skipFaceCapture ? "default" : "outline"}
-                    onClick={completeSignup}
-                    disabled={isSubmitting}
-                    className={skipFaceCapture ? "bg-green-600 hover:bg-green-700" : ""}
-                  >
-                    {isSubmitting ? "Creating Account..." : "Complete Registration"}
-                  </Button>
+            />
+            
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input 
+                        type={showPassword ? "text" : "password"} 
+                        placeholder="Create a password" 
+                        {...field} 
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="rollNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Roll Number</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter your roll number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="department"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Department</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select department" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Computer Science">Computer Science</SelectItem>
+                        <SelectItem value="Information Technology">Information Technology</SelectItem>
+                        <SelectItem value="Electrical Engineering">Electrical Engineering</SelectItem>
+                        <SelectItem value="Mechanical Engineering">Mechanical Engineering</SelectItem>
+                        <SelectItem value="Civil Engineering">Civil Engineering</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </div>
+              />
+              
+              <FormField
+                control={form.control}
+                name="year"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Year</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select year" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="First Year">First Year</SelectItem>
+                        <SelectItem value="Second Year">Second Year</SelectItem>
+                        <SelectItem value="Third Year">Third Year</SelectItem>
+                        <SelectItem value="Fourth Year">Fourth Year</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-          </motion.div>
-        )}
+            
+            <div className="flex justify-between pt-4">
+              <Button 
+                type="button" 
+                variant="outline"
+                onClick={onCancel}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                className="bg-primary"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating Account...
+                  </>
+                ) : (
+                  "Register Account"
+                )}
+              </Button>
+            </div>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );
