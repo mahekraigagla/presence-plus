@@ -1,29 +1,91 @@
+
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Calendar, BarChart2 } from 'lucide-react';
+import { LogOut, User, Calendar, BarChart2, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Navbar from '@/components/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { AttendanceStats } from '@/components/AttendanceStats';
-import { AttendanceTable } from '@/components/AttendanceTable'; 
-import { AttendanceStatsProps, AttendanceTableProps, StudentData } from '@/integrations/types/attendance-types';
+import AttendanceStats from '@/components/AttendanceStats';
+import AttendanceTable from '@/components/AttendanceTable';
+import { StudentData } from '@/integrations/types/attendance-types';
+import QRScanner from '@/components/QRScanner';
 
 const StudentDashboard = () => {
   const [studentData, setStudentData] = useState<StudentData | null>(null);
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [hasAttendance, setHasAttendance] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    const storedStudent = localStorage.getItem('currentStudent');
-    if (storedStudent) {
-      setStudentData(JSON.parse(storedStudent));
-    } else {
-      navigate('/login');
-    }
-  }, [navigate]);
+    const checkAuth = async () => {
+      try {
+        // Get current session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          toast({
+            title: "Authentication Required",
+            description: "Please login to access this page",
+            variant: "destructive"
+          });
+          navigate('/login');
+          return;
+        }
+        
+        // Fetch student profile
+        const { data: student, error } = await supabase
+          .from('students')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (error || !student) {
+          toast({
+            title: "Profile Not Found",
+            description: "Could not find your student profile",
+            variant: "destructive"
+          });
+          await supabase.auth.signOut();
+          navigate('/login');
+          return;
+        }
+        
+        // Store student data
+        setStudentData(student);
+        localStorage.setItem('currentStudent', JSON.stringify(student));
+        
+        // Check if student has any attendance records
+        const { data: records, error: recordsError } = await supabase
+          .from('attendance_records')
+          .select('id')
+          .eq('student_id', student.id)
+          .limit(1);
+        
+        if (recordsError) {
+          console.error("Error checking attendance records:", recordsError);
+        }
+        
+        setHasAttendance(records && records.length > 0);
+      } catch (error) {
+        console.error("Auth check error:", error);
+        toast({
+          title: "Authentication Error",
+          description: "Please login again",
+          variant: "destructive"
+        });
+        navigate('/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkAuth();
+  }, [navigate, toast]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -33,6 +95,10 @@ const StudentDashboard = () => {
       description: "You have been successfully logged out.",
     });
     navigate('/login');
+  };
+
+  const handleScanQR = () => {
+    setShowQRScanner(true);
   };
 
   const fadeInUp = {
@@ -47,7 +113,7 @@ const StudentDashboard = () => {
     },
   };
 
-  if (!studentData) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <motion.div
@@ -56,7 +122,8 @@ const StudentDashboard = () => {
           transition={{ duration: 0.5 }}
           className="text-center"
         >
-          <p className="text-lg font-semibold">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="text-lg font-semibold mt-4">Loading your dashboard...</p>
         </motion.div>
       </div>
     );
@@ -93,10 +160,16 @@ const StudentDashboard = () => {
                     Here's an overview of your attendance.
                   </CardDescription>
                 </div>
-                <Button variant="outline" onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </Button>
+                <div className="flex space-x-2">
+                  <Button variant="outline" onClick={handleScanQR}>
+                    <QrCode className="mr-2 h-4 w-4" />
+                    Scan QR
+                  </Button>
+                  <Button variant="outline" onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -122,7 +195,7 @@ const StudentDashboard = () => {
                 <BarChart2 className="h-6 w-6 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <AttendanceStats studentId={studentData?.id} />
+                {studentData && <AttendanceStats studentId={studentData?.id} />}
               </CardContent>
             </Card>
           </motion.div>
@@ -136,12 +209,19 @@ const StudentDashboard = () => {
                 <Calendar className="h-6 w-6 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <AttendanceTable studentId={studentData?.id} />
+                {studentData && <AttendanceTable studentId={studentData?.id} />}
               </CardContent>
             </Card>
           </motion.div>
         </motion.div>
       </main>
+      
+      {showQRScanner && studentData && (
+        <QRScanner 
+          onClose={() => setShowQRScanner(false)} 
+          studentId={studentData.id} 
+        />
+      )}
     </div>
   );
 };

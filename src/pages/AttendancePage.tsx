@@ -1,385 +1,262 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { CalendarDays, CheckCircle2, Clock, User2, Users } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { DatePicker } from "@/components/ui/date-picker";
-import { cn } from "@/lib/utils";
-
-const formSchema = z.object({
-  date: z.date({
-    required_error: "A date is required.",
-  }),
-});
+import Navbar from '@/components/Navbar';
 
 const AttendancePage = () => {
-  const [classInfo, setClassInfo] = useState<{ id: string; name: string } | null>(null);
-  const [attendanceData, setAttendanceData] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const { classId } = useParams<{ classId: string }>();
-  const { toast } = useToast();
-  const [progress, setProgress] = useState(0);
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      date: new Date(),
-    },
-  });
-
+  const [students, setStudents] = useState<any[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  
   useEffect(() => {
-    if (!classId) {
-      toast({
-        title: "Error",
-        description: "Class ID is missing.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchClassInfo = async () => {
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        const { data: classData, error: classError } = await supabase
-          .from('classes')
-          .select('id, name')
-          .eq('id', classId)
-          .single();
-
-        if (classError) {
-          console.error("Error fetching class info:", classError);
-          throw classError;
+        // Fetch students
+        const { data: studentsData, error: studentsError } = await supabase
+          .from('students')
+          .select('*')
+          .order('roll_number', { ascending: true });
+        
+        if (studentsError) throw studentsError;
+        
+        setStudents(studentsData || []);
+        
+        // Fetch attendance records
+        const dateFilter = selectedDate 
+          ? new Date(selectedDate.setHours(0, 0, 0, 0)).toISOString()
+          : undefined;
+        
+        let query = supabase
+          .from('attendance_records')
+          .select(`
+            *,
+            students:student_id (
+              id,
+              full_name,
+              roll_number,
+              department,
+              email
+            )
+          `)
+          .eq('class_id', classId);
+        
+        if (dateFilter) {
+          // Using a date range for the day
+          const nextDay = new Date(selectedDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+          
+          query = query
+            .gte('timestamp', dateFilter)
+            .lt('timestamp', nextDay.toISOString());
         }
-
-        if (classData) {
-          setClassInfo({ id: classData.id, name: classData.name });
-        } else {
-          toast({
-            title: "Error",
-            description: "Class not found.",
-            variant: "destructive",
-          });
+        
+        if (selectedStatus !== 'all') {
+          query = query.eq('status', selectedStatus);
         }
-      } catch (error: any) {
-        console.error("Error fetching class info:", error);
-        toast({
-          title: "Error",
-          description: error.message || "Failed to load class information.",
-          variant: "destructive",
-        });
+        
+        const { data: attendanceData, error: attendanceError } = await query;
+        
+        if (attendanceError) throw attendanceError;
+        
+        setAttendanceRecords(attendanceData || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
-
-    fetchClassInfo();
-  }, [classId, toast]);
-
-  const fetchAttendanceData = async (selectedDate: Date) => {
-    if (!classId) return;
-
-    setIsLoading(true);
-    try {
-      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-      const { data, error } = await supabase
-        .from('attendances')
-        .select(`
-          id,
-          status,
-          student_id,
-          students (
-            id,
-            full_name,
-            roll_number
-          )
-        `)
-        .eq('class_id', classId)
-        .eq('date', formattedDate);
-
-      if (error) {
-        console.error("Error fetching attendance data:", error);
-        throw error;
-      }
-
-      if (data) {
-        setAttendanceData(data);
-      } else {
-        setAttendanceData([]);
-      }
-    } catch (error: any) {
-      console.error("Error fetching attendance data:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load attendance data.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    
+    fetchData();
+  }, [classId, selectedDate, selectedStatus]);
+  
+  const filteredAttendance = attendanceRecords.filter(record => {
+    const studentName = record.students?.full_name?.toLowerCase() || '';
+    const rollNumber = record.students?.roll_number?.toLowerCase() || '';
+    const query = searchQuery.toLowerCase();
+    
+    return studentName.includes(query) || rollNumber.includes(query);
+  });
+  
+  const exportToCSV = () => {
+    if (filteredAttendance.length === 0) return;
+    
+    const headers = ['Roll Number', 'Student Name', 'Department', 'Date & Time', 'Status'];
+    
+    const csvData = filteredAttendance.map(record => [
+      record.students?.roll_number || '',
+      record.students?.full_name || '',
+      record.students?.department || '',
+      record.timestamp ? format(new Date(record.timestamp), 'PPP p') : '',
+      record.status
+    ]);
+    
+    let csvContent = headers.join(',') + '\n';
+    csvData.forEach(row => {
+      csvContent += row.map(cell => `"${cell}"`).join(',') + '\n';
+    });
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `attendance-${classId}-${format(selectedDate || new Date(), 'yyyy-MM-dd')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
-
-  useEffect(() => {
-    const currentDate = form.getValues().date;
-    fetchAttendanceData(currentDate);
-  }, [classId, toast]);
-
-  const updateAttendanceStatus = async (attendanceId: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from('attendances')
-        .update({ status: newStatus })
-        .eq('id', attendanceId);
-
-      if (error) {
-        console.error("Error updating attendance status:", error);
-        throw error;
-      }
-
-      // Optimistically update the state
-      setAttendanceData(prevData =>
-        prevData.map(item =>
-          item.id === attendanceId ? { ...item, status: newStatus } : item
-        )
-      );
-
-      toast({
-        title: "Success",
-        description: "Attendance status updated successfully.",
-      });
-    } catch (error: any) {
-      console.error("Error updating attendance status:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update attendance status.",
-        variant: "destructive",
-      });
-      // Revert the state in case of error
-      fetchAttendanceData(form.getValues().date);
-    }
-  };
-
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    setProgress(0);
-
-    let progressValue = 0;
-    const interval = setInterval(() => {
-      progressValue += 10;
-      setProgress(progressValue);
-
-      if (progressValue >= 100) {
-        clearInterval(interval);
-      }
-    }, 100);
-
-    try {
-      const selectedDate = form.getValues().date;
-      await fetchAttendanceData(selectedDate);
-      toast({
-        title: "Attendance Loaded",
-        description: "Attendance data loaded successfully for the selected date.",
-      });
-    } catch (error: any) {
-      console.error("Error submitting form:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load attendance data.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-      clearInterval(interval);
-      setProgress(0);
-    }
-  };
-
-  const onSubmit = () => {
-    handleSubmit();
-  };
-
-  const fadeInUp = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: [0.22, 1, 0.36, 1]
-      }
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="flex items-center justify-center space-x-2">
-          <div className="w-4 h-4 rounded-full animate-pulse bg-primary"></div>
-          <div className="w-4 h-4 rounded-full animate-pulse bg-primary delay-100"></div>
-          <div className="w-4 h-4 rounded-full animate-pulse bg-primary delay-200"></div>
-        </div>
-      </div>
-    );
-  }
-
+  
+  const hasRecords = filteredAttendance.length > 0;
+  
   return (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={{
-        hidden: { opacity: 0 },
-        visible: {
-          opacity: 1,
-          transition: { delayChildren: 0.3, staggerChildren: 0.2 }
-        }
-      }}
-      className="container py-8"
-    >
-      <motion.div variants={fadeInUp} className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gradient mb-2">
-          Attendance for {classInfo?.name}
-        </h1>
-        <p className="text-muted-foreground">
-          Manage attendance records for this class
-        </p>
-      </motion.div>
-
-      <motion.div variants={fadeInUp} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+    <div className="min-h-screen flex flex-col">
+      <Navbar userRole="teacher" />
+      
+      <main className="flex-grow p-6 pt-24">
+        <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">
-              <CalendarDays className="mr-2 h-4 w-4 inline-block align-middle" />
-              Select Date
-            </CardTitle>
-            <CardDescription>
-              Choose a date to view attendance records.
-            </CardDescription>
+            <CardTitle>Attendance Records - Class {classId}</CardTitle>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <DatePicker
-                          className={cn(
-                            "w-full",
-                            !field.value && "text-muted-foreground"
-                          )}
-                          onSelect={(date) => {
-                            form.setValue("date", date!)
-                          }}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Select a date to view the attendance records.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="md:w-1/4">
+                <label className="text-sm font-medium block mb-2">Date</label>
+                <DatePicker date={selectedDate} setDate={setSelectedDate} />
+              </div>
+              
+              <div className="md:w-1/4">
+                <label className="text-sm font-medium block mb-2">Status</label>
+                <Select
+                  value={selectedStatus}
+                  onValueChange={setSelectedStatus}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="Present">Present</SelectItem>
+                    <SelectItem value="Absent">Absent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="md:w-1/2">
+                <label className="text-sm font-medium block mb-2">Search</label>
+                <Input
+                  placeholder="Search by name or roll number"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      Loading...
-                      <Progress value={progress} className="mt-2" />
-                    </>
-                  ) : (
-                    "Load Attendance"
-                  )}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">
-              <Users className="mr-2 h-4 w-4 inline-block align-middle" />
-              Attendance Summary
-            </CardTitle>
-            <CardDescription>
-              Overview of attendance for {format(form.getValues().date, 'PPP')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {attendanceData.length === 0 ? (
-              <p className="text-muted-foreground">No attendance data for this date.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead>
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Roll No.
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {attendanceData.map((item) => (
-                      <tr key={item.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {item.students?.roll_number}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {item.students?.full_name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {item.status}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <div className="space-x-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => updateAttendanceStatus(item.id, 'present')}
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => updateAttendanceStatus(item.id, 'absent')}
-                            >
-                              <Clock className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
+              </div>
+            </div>
+            
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {loading ? 'Loading...' : `${filteredAttendance.length} records found`}
+                </p>
+              </div>
+              <Button 
+                onClick={exportToCSV}
+                disabled={!hasRecords || loading}
+                variant="outline"
+                size="sm"
+              >
+                Export to CSV
+              </Button>
+            </div>
+            
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+              </div>
+            ) : hasRecords ? (
+              <div className="border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Roll Number</TableHead>
+                      <TableHead>Student Name</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Date & Time</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Method</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAttendance.map((record) => (
+                      <TableRow key={record.id}>
+                        <TableCell>{record.students?.roll_number || 'N/A'}</TableCell>
+                        <TableCell>{record.students?.full_name || 'N/A'}</TableCell>
+                        <TableCell>{record.students?.department || 'N/A'}</TableCell>
+                        <TableCell>
+                          {record.timestamp ? format(new Date(record.timestamp), 'PPP p') : 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              record.status === 'Present'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                            }`}
+                          >
+                            {record.status}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm capitalize">
+                            {record.verification_method?.replace('_', ' ')}
+                          </span>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="border rounded-md flex flex-col items-center justify-center h-64 text-center">
+                <div className="text-muted-foreground mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 6h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2"></path>
+                    <path d="M12 2a4 4 0 1 0 0 8 4 4 0 1 0 0-8z"></path>
+                  </svg>
+                </div>
+                <h3 className="font-medium text-lg">No attendance records found</h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-md">
+                  There are no attendance records for the selected filters. Try changing the date or status filter.
+                </p>
               </div>
             )}
           </CardContent>
         </Card>
-      </motion.div>
-    </motion.div>
+      </main>
+    </div>
   );
 };
 

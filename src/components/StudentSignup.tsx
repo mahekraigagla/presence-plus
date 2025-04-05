@@ -9,10 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from '@/hooks/use-toast';
-import { Eye, EyeOff, UserPlus, Camera, RefreshCw, AlertCircle, CheckCircle2, InfoIcon } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff, Camera, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface StudentSignupProps {
   onComplete: () => void;
@@ -40,15 +39,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
   const [skipFaceCapture, setSkipFaceCapture] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  // Authorized emails with auto-fill info
-  const demoStudents = [
-    { email: 'mahek.raigagla@somaiya.edu', password: '123456789' },
-    { email: 'jiya.mehta@gmail.com', password: '123456789' },
-    { email: 'rahul@gmail.com', password: '123456789' },
-    { email: 'manavi.k@gmail.com', password: '123456789' },
-    { email: 'pratham.shah@gmail.com', password: '123456789' },
-  ];
+  const { toast } = useToast();
   
   const form = useForm<z.infer<typeof studentSchema>>({
     resolver: zodResolver(studentSchema),
@@ -61,19 +52,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       year: '',
     },
   });
-
-  // Watch for email changes to auto-fill password for demo accounts
-  useEffect(() => {
-    const subscription = form.watch((value) => {
-      if (value.email) {
-        const demoStudent = demoStudents.find(student => student.email === value.email);
-        if (demoStudent) {
-          form.setValue('password', demoStudent.password);
-        }
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [form]);
 
   // Stop camera when component unmounts
   useEffect(() => {
@@ -285,24 +263,6 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       <CardContent className="pt-6">
         {currentStep === 'details' ? (
           <Form {...form}>
-            <div className="mb-6">
-              <Alert>
-                <InfoIcon className="h-4 w-4" />
-                <AlertTitle>Demo Accounts</AlertTitle>
-                <AlertDescription>
-                  <p>The following student accounts are pre-configured (password: 123456789):</p>
-                  <ul className="text-xs mt-1 space-y-1">
-                    {demoStudents.map(student => (
-                      <li key={student.email} className="cursor-pointer hover:text-primary" 
-                          onClick={() => form.setValue('email', student.email)}>
-                        {student.email}
-                      </li>
-                    ))}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            </div>
-          
             <form onSubmit={form.handleSubmit(onDetailsSubmit)} className="space-y-4">
               <FormField
                 control={form.control}

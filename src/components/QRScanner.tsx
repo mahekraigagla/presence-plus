@@ -188,10 +188,10 @@ const QRScanner: React.FC<QRScannerProps> = ({ onClose, studentId }) => {
       description: "Successfully scanned attendance QR code"
     });
     
-    // Navigate to face verification page with student ID
+    // Navigate to face attendance page with student ID
     if (studentId) {
       const { classId, lectureId, timestamp } = validation as any;
-      navigate(`/face-verification/${classId}?lecture=${lectureId}&timestamp=${timestamp}&studentId=${studentId}`);
+      navigate(`/face-attendance/${classId}?lecture=${lectureId}&timestamp=${timestamp}`);
     } else {
       toast({
         title: "Error",

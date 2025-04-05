@@ -1,205 +1,178 @@
 
-import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/integrations/supabase/client';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
-// Sample data for demonstration
-const weeklyData = [
-  { day: 'Mon', attended: 2, total: 3 },
-  { day: 'Tue', attended: 3, total: 3 },
-  { day: 'Wed', attended: 1, total: 2 },
-  { day: 'Thu', attended: 2, total: 2 },
-  { day: 'Fri', attended: 2, total: 3 },
-];
-
-const monthlyData = [
-  { week: 'Week 1', attended: 9, total: 12 },
-  { week: 'Week 2', attended: 7, total: 10 },
-  { week: 'Week 3', attended: 11, total: 12 },
-  { week: 'Week 4', attended: 9, total: 10 },
-];
-
-const semesterData = [
-  { month: 'Jan', attended: 35, total: 40 },
-  { month: 'Feb', attended: 38, total: 45 },
-  { month: 'Mar', attended: 30, total: 42 },
-  { month: 'Apr', attended: 28, total: 35 },
-  { month: 'May', attended: 32, total: 38 },
-];
-
-interface Props {
-  role: 'student' | 'teacher';
-  className?: string;
+interface AttendanceStatsProps {
+  studentId: string;
 }
 
-const AttendanceStats: React.FC<Props> = ({ role, className }) => {
-  // Format data for percentage calculation
-  const formatDataForChart = (data: any[]) => {
-    return data.map(item => {
-      const keyName = Object.keys(item)[0]; // Get the first key (day, week, month)
-      return {
-        ...item,
-        percentage: Math.round((item.attended / item.total) * 100)
-      };
-    });
-  };
+const AttendanceStats: React.FC<AttendanceStatsProps> = ({ studentId }) => {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<{
+    present: number;
+    absent: number;
+    total: number;
+    percentage: number;
+  }>({
+    present: 0,
+    absent: 0,
+    total: 0,
+    percentage: 0,
+  });
+  const [hasRecords, setHasRecords] = useState(false);
 
-  const formattedWeeklyData = formatDataForChart(weeklyData);
-  const formattedMonthlyData = formatDataForChart(monthlyData);
-  const formattedSemesterData = formatDataForChart(semesterData);
-  
-  // Calculate overall attendance percentage
-  const calculateOverall = (data: any[]) => {
-    const totalAttended = data.reduce((sum, item) => sum + item.attended, 0);
-    const totalClasses = data.reduce((sum, item) => sum + item.total, 0);
-    return {
-      attended: totalAttended,
-      total: totalClasses,
-      percentage: Math.round((totalAttended / totalClasses) * 100)
+  useEffect(() => {
+    const fetchAttendanceStats = async () => {
+      try {
+        if (!studentId) return;
+        
+        setLoading(true);
+        
+        // Fetch attendance records for the student
+        const { data: records, error } = await supabase
+          .from('attendance_records')
+          .select('*')
+          .eq('student_id', studentId);
+        
+        if (error) throw error;
+        
+        if (records && records.length > 0) {
+          const present = records.filter(r => r.status === 'Present').length;
+          const total = records.length;
+          const absent = total - present;
+          const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+          
+          setStats({
+            present,
+            absent,
+            total,
+            percentage
+          });
+          
+          setHasRecords(true);
+        } else {
+          setHasRecords(false);
+        }
+      } catch (error) {
+        console.error('Error fetching attendance stats:', error);
+      } finally {
+        setLoading(false);
+      }
     };
-  };
-  
-  const weeklyOverall = calculateOverall(weeklyData);
-  const monthlyOverall = calculateOverall(monthlyData);
-  const semesterOverall = calculateOverall(semesterData);
+    
+    fetchAttendanceStats();
+  }, [studentId]);
 
-  // Custom tooltip for the chart
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="glass dark:glass-dark p-3 rounded-lg shadow-sm">
-          <p className="font-medium">{label}</p>
-          <p className="text-sm text-muted-foreground">
-            Attended: <span className="font-medium text-primary">{payload[0].payload.attended}/{payload[0].payload.total}</span>
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Percentage: <span className="font-medium text-primary">{payload[0].payload.percentage}%</span>
-          </p>
+  const chartData = [
+    { name: 'Present', value: stats.present, color: '#22c55e' },
+    { name: 'Absent', value: stats.absent, color: '#ef4444' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (!hasRecords) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <div className="text-gray-400 dark:text-gray-500 mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
+            <line x1="16" x2="16" y1="2" y2="6"></line>
+            <line x1="8" x2="8" y1="2" y2="6"></line>
+            <line x1="3" x2="21" y1="10" y2="10"></line>
+          </svg>
         </div>
-      );
-    }
-    return null;
-  };
+        <h3 className="text-lg font-medium">No attendance records found</h3>
+        <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+          Please mark your first attendance to see statistics and data visualization here.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <Card className={`glass dark:glass-dark shadow-sm ${className}`}>
-      <CardHeader>
-        <CardTitle className="text-xl">{role === 'student' ? 'Your Attendance' : 'Class Attendance'}</CardTitle>
-        <CardDescription>
-          {role === 'student' 
-            ? 'Track your attendance records and performance' 
-            : 'Monitor your class attendance statistics'}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="weekly" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="weekly">This Week</TabsTrigger>
-            <TabsTrigger value="monthly">This Month</TabsTrigger>
-            <TabsTrigger value="semester">Semester</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="weekly" className="pt-4">
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={formattedWeeklyData}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                  <XAxis dataKey="day" />
-                  <YAxis tickFormatter={(value) => `${value}%`} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar 
-                    dataKey="percentage" 
-                    fill="hsl(var(--primary))" 
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={50}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex justify-between items-center mt-4 pt-4 border-t">
-              <div>
-                <p className="text-sm text-muted-foreground">Classes Attended</p>
-                <p className="text-2xl font-semibold">{weeklyOverall.attended}/{weeklyOverall.total}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Overall Percentage</p>
-                <p className={`text-2xl font-semibold ${weeklyOverall.percentage >= 75 ? 'text-green-500' : 'text-red-500'}`}>
-                  {weeklyOverall.percentage}%
-                </p>
-              </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="monthly" className="pt-4">
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={formattedMonthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                  <XAxis dataKey="week" />
-                  <YAxis tickFormatter={(value) => `${value}%`} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar 
-                    dataKey="percentage" 
-                    fill="hsl(var(--primary))" 
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={50}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex justify-between items-center mt-4 pt-4 border-t">
-              <div>
-                <p className="text-sm text-muted-foreground">Classes Attended</p>
-                <p className="text-2xl font-semibold">{monthlyOverall.attended}/{monthlyOverall.total}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Overall Percentage</p>
-                <p className={`text-2xl font-semibold ${monthlyOverall.percentage >= 75 ? 'text-green-500' : 'text-red-500'}`}>
-                  {monthlyOverall.percentage}%
-                </p>
-              </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="semester" className="pt-4">
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={formattedSemesterData}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                  <XAxis dataKey="month" />
-                  <YAxis tickFormatter={(value) => `${value}%`} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar 
-                    dataKey="percentage" 
-                    fill="hsl(var(--primary))" 
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={50}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex justify-between items-center mt-4 pt-4 border-t">
-              <div>
-                <p className="text-sm text-muted-foreground">Classes Attended</p>
-                <p className="text-2xl font-semibold">{semesterOverall.attended}/{semesterOverall.total}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Overall Percentage</p>
-                <p className={`text-2xl font-semibold ${semesterOverall.percentage >= 75 ? 'text-green-500' : 'text-red-500'}`}>
-                  {semesterOverall.percentage}%
-                </p>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-      <CardFooter className="text-xs text-muted-foreground">
-        {role === 'student'
-          ? 'Minimum required attendance: 75%'
-          : 'Class average compared to attendance requirements'}
-      </CardFooter>
-    </Card>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total Classes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Present</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.present}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Absent</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-500">{stats.absent}</div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Attendance Rate</CardTitle>
+          <CardDescription>Overall attendance percentage</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-2 flex items-center justify-between">
+            <span>{stats.percentage}%</span>
+          </div>
+          <Progress value={stats.percentage} className="h-2" />
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Attendance Distribution</CardTitle>
+          <CardDescription>Breakdown of your attendance</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-60">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
