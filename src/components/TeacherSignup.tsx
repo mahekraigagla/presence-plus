@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -72,8 +71,7 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
         options: {
           data: {
             full_name: data.fullName,
-          },
-          emailRedirectTo: window.location.origin + '/login'
+          }
         }
       });
       

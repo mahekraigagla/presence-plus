@@ -68,6 +68,11 @@ const FaceVerificationPage = () => {
     
     checkAuth();
   }, [navigate, toast]);
+
+  const handleOpenExternalProject = () => {
+    // Open the external project in a new tab
+    window.open('https://github.com/mahekraigagla/opencv.git', '_blank');
+  };
   
   if (loading) {
     return (
@@ -103,6 +108,17 @@ const FaceVerificationPage = () => {
             <p className="text-muted-foreground">
               Please verify your identity to mark attendance for class {classId}
             </p>
+          </div>
+
+          <div className="text-center mb-8">
+            <Button 
+              onClick={handleOpenExternalProject} 
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              size="lg"
+            >
+              Open Face Recognition System
+            </Button>
+            <p className="mt-2 text-muted-foreground">Click the button above to launch the face recognition system</p>
           </div>
           
           <FaceVerification

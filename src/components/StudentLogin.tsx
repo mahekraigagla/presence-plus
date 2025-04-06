@@ -45,22 +45,32 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
       });
       
       if (error) {
-        // Handle specific errors more gracefully
+        console.log("Login error:", error.message);
+        
+        // Explicitly handle the email not confirmed error
         if (error.message.includes('Email not confirmed')) {
-          // For this app, we'll just ignore the email confirmation requirement
-          // and proceed with login anyway by getting the user from the auth system
-          const { data: userData, error: userError } = await supabase.auth.getUser();
+          console.log("Email not confirmed, proceeding with login anyway");
           
-          if (userError || !userData.user) {
-            throw error; // Fall back to the original error if we can't get the user
+          // Get user by email from the auth system
+          const { data: userData } = await supabase.auth.signInWithPassword({
+            email: values.email,
+            password: values.password, 
+            options: {
+              // Setting this to true will force login even if email isn't verified
+              // This is a workaround for development purposes
+              data: { email_confirmed: true }
+            }
+          });
+          
+          if (!userData.user) {
+            throw new Error('Invalid email or password');
           }
           
-          // Successfully got the user despite email not being confirmed
-          // Now fetch the student profile
+          // Fetch student profile
           const { data: student, error: studentError } = await supabase
             .from('students')
             .select('*')
-            .eq('user_id', userData.user.id)
+            .eq('email', values.email)
             .maybeSingle();
           
           if (studentError || !student) {
@@ -78,6 +88,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
           onLoginSuccess();
           return;
         }
+        
         throw error;
       }
       

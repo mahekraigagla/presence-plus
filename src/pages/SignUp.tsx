@@ -20,11 +20,11 @@ const SignUp = () => {
     // Clear any previous errors
     setError(null);
     
-    // Show success toast - using 'default' instead of 'success' to fix the TS error
+    // Show success toast
     toast({
       title: 'Registration Complete',
       description: 'Your account has been created. Please log in to continue.',
-      variant: 'default'
+      variant: 'success'
     });
     
     // Redirect to login page after signup

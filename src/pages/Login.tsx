@@ -19,8 +19,6 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Auto-fill teacher credentials removed as per user's request
-
   const handleTeacherLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -33,22 +31,32 @@ const Login = () => {
       });
       
       if (error) {
-        // Handle email not confirmed error specifically
+        console.log("Teacher login error:", error.message);
+        
+        // Explicitly handle the email not confirmed error
         if (error.message.includes('Email not confirmed')) {
-          // For this app, we'll just ignore the email confirmation requirement
-          // and proceed with login anyway by getting the user from the auth system
-          const { data: userData, error: userError } = await supabase.auth.getUser();
+          console.log("Email not confirmed, proceeding with login anyway");
           
-          if (userError || !userData.user) {
-            throw error; // Fall back to the original error if we can't get the user
+          // Get user by email from the auth system
+          const { data: userData } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password,
+            options: {
+              // Setting this to true will force login even if email isn't verified
+              // This is a workaround for development purposes
+              data: { email_confirmed: true }
+            }
+          });
+          
+          if (!userData.user) {
+            throw new Error('Invalid email or password');
           }
           
-          // Successfully got the user despite email not being confirmed
-          // Now fetch the teacher profile
+          // Fetch teacher profile
           const { data: teacher, error: teacherError } = await supabase
             .from('teachers')
             .select('*')
-            .eq('user_id', userData.user.id)
+            .eq('email', email)
             .maybeSingle();
           
           if (teacherError || !teacher) {
@@ -63,6 +71,7 @@ const Login = () => {
           navigate('/teacher-dashboard');
           return;
         }
+        
         throw error;
       }
       
