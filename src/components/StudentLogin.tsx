@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -37,6 +38,8 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
     setIsLoggingIn(true);
     
     try {
+      console.log("Attempting student login with:", values.email);
+      
       // Sign in with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
@@ -45,50 +48,14 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
       
       if (error) {
         console.log("Login error:", error.message);
-        
-        // Explicitly handle the email not confirmed error
-        if (error.message.includes('Email not confirmed')) {
-          console.log("Email not confirmed, proceeding with login anyway");
-          
-          // Get user by email from the auth system - using proper typings
-          const { data: userData } = await supabase.auth.signInWithPassword({
-            email: values.email,
-            password: values.password, 
-          });
-          
-          if (!userData.user) {
-            throw new Error('Invalid email or password');
-          }
-          
-          // Fetch student profile
-          const { data: student, error: studentError } = await supabase
-            .from('students')
-            .select('*')
-            .eq('email', values.email)
-            .maybeSingle();
-          
-          if (studentError || !student) {
-            throw new Error('No student profile found for this account');
-          }
-          
-          // Store student data in localStorage
-          localStorage.setItem('currentStudent', JSON.stringify(student));
-          
-          toast({
-            title: "Login Successful",
-            description: "Welcome back!",
-          });
-          
-          onLoginSuccess();
-          return;
-        }
-        
         throw error;
       }
       
       if (!data.user) {
         throw new Error('No user data returned from authentication service');
       }
+      
+      console.log("Auth succeeded, fetching student profile for user_id:", data.user.id);
       
       // Fetch student profile
       const { data: student, error: studentError } = await supabase
@@ -98,12 +65,16 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
         .maybeSingle();
       
       if (studentError) {
+        console.error("Error fetching student profile:", studentError);
         throw studentError;
       }
       
       if (!student) {
-        throw new Error('No student profile found for this account');
+        console.error("No student profile found for user_id:", data.user.id);
+        throw new Error('No student profile found for this account. This account might be registered as a teacher.');
       }
+      
+      console.log("Student profile retrieved:", student);
       
       // Store student data in localStorage
       localStorage.setItem('currentStudent', JSON.stringify(student));

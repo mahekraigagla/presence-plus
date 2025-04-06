@@ -24,6 +24,8 @@ const Login = () => {
     setIsLoading(true);
     
     try {
+      console.log("Attempting teacher login with:", email);
+      
       // Attempt to sign in with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
@@ -31,46 +33,15 @@ const Login = () => {
       });
       
       if (error) {
-        // Handle email not confirmed error
-        if (error.message.includes('Email not confirmed')) {
-          console.log("Email not confirmed, proceeding with login anyway");
-          
-          // Get user by email from the auth system
-          const { data: userData, error: loginError } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password,
-          });
-          
-          if (loginError || !userData.user) {
-            throw new Error('Invalid email or password');
-          }
-          
-          // Fetch teacher profile
-          const { data: teacher, error: teacherError } = await supabase
-            .from('teachers')
-            .select('*')
-            .eq('email', email)
-            .maybeSingle();
-          
-          if (teacherError || !teacher) {
-            throw new Error('No teacher profile found for this account');
-          }
-          
-          toast({
-            title: "Login Successful",
-            description: "Welcome back!",
-          });
-          
-          navigate('/teacher-dashboard');
-          return;
-        }
-        
+        console.log("Login error:", error.message);
         throw error;
       }
       
       if (!data.user) {
         throw new Error('No user data returned from authentication service');
       }
+      
+      console.log("Auth succeeded, fetching teacher profile for user_id:", data.user.id);
       
       // Fetch teacher profile
       const { data: teacher, error: teacherError } = await supabase
@@ -80,12 +51,19 @@ const Login = () => {
         .maybeSingle();
       
       if (teacherError) {
+        console.error("Error fetching teacher profile:", teacherError);
         throw teacherError;
       }
       
       if (!teacher) {
-        throw new Error('No teacher profile found for this account');
+        console.error("No teacher profile found for user_id:", data.user.id);
+        throw new Error('No teacher profile found for this account. This account might be registered as a student.');
       }
+      
+      console.log("Teacher profile retrieved:", teacher);
+      
+      // Store teacher data in localStorage
+      localStorage.setItem('currentTeacher', JSON.stringify(teacher));
       
       toast({
         title: "Login Successful",

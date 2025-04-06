@@ -49,6 +49,8 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
     setIsSubmitting(true);
     
     try {
+      console.log("Starting student signup:", data.email);
+      
       // First check if user already exists
       const { data: existingUsers, error: checkError } = await supabase
         .from('students')
@@ -70,7 +72,8 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         return;
       }
       
-      // Create Supabase auth user with email confirmation disabled
+      console.log("Creating auth user for:", data.email);
+      // Create Supabase auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -101,7 +104,10 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         throw new Error("Failed to create user account.");
       }
       
+      console.log("Auth user created:", authData.user.id);
+      
       // Store student details
+      console.log("Storing student profile");
       const { error: studentError } = await supabase
         .from('students')
         .insert({
@@ -132,6 +138,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       }
       
       // Success!
+      console.log("Student account created successfully");
       toast({
         title: "Account Created",
         description: "Your account has been created successfully. You can now log in.",

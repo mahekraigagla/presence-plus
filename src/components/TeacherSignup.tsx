@@ -8,9 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, X, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TeacherSignupProps {
@@ -23,26 +22,20 @@ const teacherSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
   department: z.string().min(1, { message: 'Department is required' }),
-  subjects: z.array(z.string()).min(1, { message: 'At least one subject is required' }),
-  divisions: z.array(z.string()).min(1, { message: 'At least one division is required' }),
 });
 
-const subjects = [
-  "Computer Programming",
-  "DBMS",
-  "OS",
-  "MATHS",
-  "TCS"
-];
-
-const divisions = [
-  "A",
-  "B"
-];
+interface SubjectDetail {
+  subject: string;
+  year: string;
+  division: string;
+}
 
 const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [subjectDetails, setSubjectDetails] = useState<SubjectDetail[]>([
+    { subject: '', year: '', division: '' }
+  ]);
   const { toast } = useToast();
   
   const form = useForm<z.infer<typeof teacherSchema>>({
@@ -52,15 +45,52 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
       email: '',
       password: '',
       department: '',
-      subjects: [],
-      divisions: [],
     },
   });
 
+  const addSubjectDetail = () => {
+    setSubjectDetails([...subjectDetails, { subject: '', year: '', division: '' }]);
+  };
+
+  const removeSubjectDetail = (index: number) => {
+    if (subjectDetails.length > 1) {
+      const newDetails = [...subjectDetails];
+      newDetails.splice(index, 1);
+      setSubjectDetails(newDetails);
+    }
+  };
+
+  const updateSubjectDetail = (index: number, field: keyof SubjectDetail, value: string) => {
+    const newDetails = [...subjectDetails];
+    newDetails[index][field] = value;
+    setSubjectDetails(newDetails);
+  };
+
+  const validateSubjectDetails = (): boolean => {
+    for (const detail of subjectDetails) {
+      if (!detail.subject || !detail.year || !detail.division) {
+        toast({
+          title: "Incomplete Subject Details",
+          description: "Please fill in all subject, year, and division fields.",
+          variant: "destructive"
+        });
+        return false;
+      }
+    }
+    return true;
+  };
+
   const onSubmit = async (data: z.infer<typeof teacherSchema>) => {
+    // Validate subject details first
+    if (!validateSubjectDetails()) {
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
+      console.log("Starting teacher signup:", data.email);
+      
       // First check if user already exists
       const { data: existingUsers, error: checkError } = await supabase
         .from('teachers')
@@ -82,7 +112,8 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
         return;
       }
       
-      // Create Supabase auth user with email confirmation disabled
+      // Create Supabase auth user
+      console.log("Creating auth user for:", data.email);
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -113,7 +144,17 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
         throw new Error("Failed to create user account.");
       }
       
+      console.log("Auth user created:", authData.user.id);
+      
+      // Format subject details as JSON array
+      const formattedSubjectDetails = subjectDetails.map(detail => ({
+        subject: detail.subject,
+        year: detail.year,
+        division: detail.division
+      }));
+      
       // Store teacher details
+      console.log("Storing teacher profile with subject details:", formattedSubjectDetails);
       const { error: teacherError } = await supabase
         .from('teachers')
         .insert({
@@ -121,8 +162,7 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
           full_name: data.fullName,
           email: data.email,
           department: data.department,
-          subject: data.subjects,
-          division: data.divisions
+          subject_details: formattedSubjectDetails
         });
       
       if (teacherError) {
@@ -142,6 +182,7 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
       }
       
       // Success!
+      console.log("Teacher account created successfully");
       toast({
         title: "Account Created",
         description: "Your teacher account has been created successfully. You can now log in.",
@@ -165,6 +206,26 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
       setIsSubmitting(false);
     }
   };
+
+  const subjects = [
+    "Computer Programming",
+    "DBMS",
+    "OS",
+    "MATHS",
+    "TCS"
+  ];
+
+  const years = [
+    "First Year",
+    "Second Year",
+    "Third Year",
+    "Fourth Year"
+  ];
+
+  const divisions = [
+    "A",
+    "B"
+  ];
 
   return (
     <Card className="border-0 shadow-md w-full max-w-lg mx-auto bg-white/80 backdrop-blur-sm dark:bg-gray-800/80">
@@ -256,107 +317,95 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
               )}
             />
             
-            <FormField
-              control={form.control}
-              name="subjects"
-              render={() => (
-                <FormItem>
-                  <div className="mb-2">
-                    <FormLabel>Subjects</FormLabel>
-                    <div className="text-sm text-muted-foreground">
-                      Select the subjects you teach
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <FormLabel>Subjects, Years & Divisions</FormLabel>
+                <Button 
+                  type="button" 
+                  onClick={addSubjectDetail} 
+                  size="sm" 
+                  variant="outline"
+                  className="flex items-center gap-1"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add Subject
+                </Button>
+              </div>
+              
+              {subjectDetails.map((detail, index) => (
+                <div key={index} className="p-3 border rounded-md space-y-3 relative">
+                  {subjectDetails.length > 1 && (
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="absolute right-1 top-1 h-7 w-7 p-0"
+                      onClick={() => removeSubjectDetail(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <FormLabel className="text-xs">Subject</FormLabel>
+                      <Select 
+                        value={detail.subject}
+                        onValueChange={(value) => updateSubjectDetail(index, 'subject', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select subject" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {subjects.map((subject) => (
+                            <SelectItem key={subject} value={subject}>
+                              {subject}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <FormLabel className="text-xs">Year</FormLabel>
+                      <Select 
+                        value={detail.year}
+                        onValueChange={(value) => updateSubjectDetail(index, 'year', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {years.map((year) => (
+                            <SelectItem key={year} value={year}>
+                              {year}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <FormLabel className="text-xs">Division</FormLabel>
+                      <Select 
+                        value={detail.division}
+                        onValueChange={(value) => updateSubjectDetail(index, 'division', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select division" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {divisions.map((division) => (
+                            <SelectItem key={division} value={division}>
+                              Division {division}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {subjects.map((subject) => (
-                      <FormField
-                        key={subject}
-                        control={form.control}
-                        name="subjects"
-                        render={({ field }) => {
-                          return (
-                            <FormItem
-                              key={subject}
-                              className="flex flex-row items-start space-x-3 space-y-0"
-                            >
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value?.includes(subject)}
-                                  onCheckedChange={(checked) => {
-                                    return checked
-                                      ? field.onChange([...field.value, subject])
-                                      : field.onChange(
-                                          field.value?.filter(
-                                            (value) => value !== subject
-                                          )
-                                        )
-                                  }}
-                                />
-                              </FormControl>
-                              <FormLabel className="text-sm font-normal">
-                                {subject}
-                              </FormLabel>
-                            </FormItem>
-                          )
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="divisions"
-              render={() => (
-                <FormItem>
-                  <div className="mb-2">
-                    <FormLabel>Divisions</FormLabel>
-                    <div className="text-sm text-muted-foreground">
-                      Select the divisions you teach
-                    </div>
-                  </div>
-                  <div className="flex gap-4">
-                    {divisions.map((division) => (
-                      <FormField
-                        key={division}
-                        control={form.control}
-                        name="divisions"
-                        render={({ field }) => {
-                          return (
-                            <FormItem
-                              key={division}
-                              className="flex flex-row items-start space-x-3 space-y-0"
-                            >
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value?.includes(division)}
-                                  onCheckedChange={(checked) => {
-                                    return checked
-                                      ? field.onChange([...field.value, division])
-                                      : field.onChange(
-                                          field.value?.filter(
-                                            (value) => value !== division
-                                          )
-                                        )
-                                  }}
-                                />
-                              </FormControl>
-                              <FormLabel className="text-sm font-normal">
-                                Division {division}
-                              </FormLabel>
-                            </FormItem>
-                          )
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                </div>
+              ))}
+            </div>
             
             <div className="flex justify-between pt-4">
               <Button 
