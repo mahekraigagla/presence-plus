@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -30,19 +31,17 @@ const Login = () => {
       });
       
       if (error) {
-        console.log("Teacher login error:", error.message);
-        
-        // Explicitly handle the email not confirmed error
+        // Handle email not confirmed error
         if (error.message.includes('Email not confirmed')) {
           console.log("Email not confirmed, proceeding with login anyway");
           
-          // Get user by email from the auth system - using proper typings
-          const { data: userData } = await supabase.auth.signInWithPassword({
+          // Get user by email from the auth system
+          const { data: userData, error: loginError } = await supabase.auth.signInWithPassword({
             email: email,
             password: password,
           });
           
-          if (!userData.user) {
+          if (loginError || !userData.user) {
             throw new Error('Invalid email or password');
           }
           
@@ -59,7 +58,7 @@ const Login = () => {
           
           toast({
             title: "Login Successful",
-            description: `Welcome back, ${teacher.full_name}!`,
+            description: "Welcome back!",
           });
           
           navigate('/teacher-dashboard');
@@ -90,7 +89,7 @@ const Login = () => {
       
       toast({
         title: "Login Successful",
-        description: `Welcome back, ${teacher.full_name}!`,
+        description: "Welcome back!",
       });
       
       navigate('/teacher-dashboard');

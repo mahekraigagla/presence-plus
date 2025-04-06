@@ -76,7 +76,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
           
           toast({
             title: "Login Successful",
-            description: `Welcome back, ${student.full_name}!`,
+            description: "Welcome back!",
           });
           
           onLoginSuccess();
@@ -110,7 +110,7 @@ const StudentLogin: React.FC<StudentLoginProps> = ({ onLoginSuccess, onSignupCli
       
       toast({
         title: "Login Successful",
-        description: `Welcome back, ${student.full_name}!`,
+        description: "Welcome back!",
       });
       
       onLoginSuccess();

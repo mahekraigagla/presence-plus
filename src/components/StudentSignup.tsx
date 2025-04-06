@@ -24,6 +24,7 @@ const studentSchema = z.object({
   rollNumber: z.string().min(1, { message: 'Roll number is required' }),
   department: z.string().min(1, { message: 'Department is required' }),
   year: z.string().min(1, { message: 'Year is required' }),
+  division: z.string().min(1, { message: 'Division is required' }),
 });
 
 const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) => {
@@ -40,6 +41,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       rollNumber: '',
       department: '',
       year: '',
+      division: '',
     },
   });
 
@@ -74,7 +76,8 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         password: data.password,
         options: {
           data: {
-            full_name: data.fullName
+            full_name: data.fullName,
+            user_role: 'student'
           },
           emailRedirectTo: window.location.origin + '/login'
         }
@@ -108,6 +111,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
           roll_number: data.rollNumber,
           department: data.department,
           year: data.year,
+          division: data.division,
           face_registered: false
         });
       
@@ -228,7 +232,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
               )}
             />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="department"
@@ -277,6 +281,31 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
                         <SelectItem value="Second Year">Second Year</SelectItem>
                         <SelectItem value="Third Year">Third Year</SelectItem>
                         <SelectItem value="Fourth Year">Fourth Year</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="division"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Division</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select division" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="A">Division A</SelectItem>
+                        <SelectItem value="B">Division B</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

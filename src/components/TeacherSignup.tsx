@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,8 +23,22 @@ const teacherSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
   department: z.string().min(1, { message: 'Department is required' }),
-  subject: z.string().min(1, { message: 'Subject is required' }),
+  subjects: z.array(z.string()).min(1, { message: 'At least one subject is required' }),
+  divisions: z.array(z.string()).min(1, { message: 'At least one division is required' }),
 });
+
+const subjects = [
+  "Computer Programming",
+  "DBMS",
+  "OS",
+  "MATHS",
+  "TCS"
+];
+
+const divisions = [
+  "A",
+  "B"
+];
 
 const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -37,7 +52,8 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
       email: '',
       password: '',
       department: '',
-      subject: '',
+      subjects: [],
+      divisions: [],
     },
   });
 
@@ -105,7 +121,8 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
           full_name: data.fullName,
           email: data.email,
           department: data.department,
-          subject: data.subject
+          subject: data.subjects,
+          division: data.divisions
         });
       
       if (teacherError) {
@@ -241,27 +258,101 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
             
             <FormField
               control={form.control}
-              name="subject"
-              render={({ field }) => (
+              name="subjects"
+              render={() => (
                 <FormItem>
-                  <FormLabel>Subject</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select subject" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Computer Programming">Computer Programming</SelectItem>
-                      <SelectItem value="DBMS">DBMS</SelectItem>
-                      <SelectItem value="OS">OS</SelectItem>
-                      <SelectItem value="MATHS">MATHS</SelectItem>
-                      <SelectItem value="TCS">TCS</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="mb-2">
+                    <FormLabel>Subjects</FormLabel>
+                    <div className="text-sm text-muted-foreground">
+                      Select the subjects you teach
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {subjects.map((subject) => (
+                      <FormField
+                        key={subject}
+                        control={form.control}
+                        name="subjects"
+                        render={({ field }) => {
+                          return (
+                            <FormItem
+                              key={subject}
+                              className="flex flex-row items-start space-x-3 space-y-0"
+                            >
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(subject)}
+                                  onCheckedChange={(checked) => {
+                                    return checked
+                                      ? field.onChange([...field.value, subject])
+                                      : field.onChange(
+                                          field.value?.filter(
+                                            (value) => value !== subject
+                                          )
+                                        )
+                                  }}
+                                />
+                              </FormControl>
+                              <FormLabel className="text-sm font-normal">
+                                {subject}
+                              </FormLabel>
+                            </FormItem>
+                          )
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="divisions"
+              render={() => (
+                <FormItem>
+                  <div className="mb-2">
+                    <FormLabel>Divisions</FormLabel>
+                    <div className="text-sm text-muted-foreground">
+                      Select the divisions you teach
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    {divisions.map((division) => (
+                      <FormField
+                        key={division}
+                        control={form.control}
+                        name="divisions"
+                        render={({ field }) => {
+                          return (
+                            <FormItem
+                              key={division}
+                              className="flex flex-row items-start space-x-3 space-y-0"
+                            >
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(division)}
+                                  onCheckedChange={(checked) => {
+                                    return checked
+                                      ? field.onChange([...field.value, division])
+                                      : field.onChange(
+                                          field.value?.filter(
+                                            (value) => value !== division
+                                          )
+                                        )
+                                  }}
+                                />
+                              </FormControl>
+                              <FormLabel className="text-sm font-normal">
+                                Division {division}
+                              </FormLabel>
+                            </FormItem>
+                          )
+                        }}
+                      />
+                    ))}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

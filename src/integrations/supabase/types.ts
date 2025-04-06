@@ -121,6 +121,7 @@ export type Database = {
         Row: {
           created_at: string | null
           department: string
+          division: string | null
           email: string
           face_image: string | null
           face_registered: boolean | null
@@ -134,6 +135,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           department: string
+          division?: string | null
           email: string
           face_image?: string | null
           face_registered?: boolean | null
@@ -147,6 +149,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           department?: string
+          division?: string | null
           email?: string
           face_image?: string | null
           face_registered?: boolean | null
@@ -163,27 +166,33 @@ export type Database = {
         Row: {
           created_at: string | null
           department: string
+          division: string[] | null
           email: string
           full_name: string
           id: string
+          subject: string[] | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           created_at?: string | null
           department: string
+          division?: string[] | null
           email: string
           full_name: string
           id?: string
+          subject?: string[] | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           created_at?: string | null
           department?: string
+          division?: string[] | null
           email?: string
           full_name?: string
           id?: string
+          subject?: string[] | null
           updated_at?: string | null
           user_id?: string
         }
