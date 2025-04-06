@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -37,15 +36,10 @@ const Login = () => {
         if (error.message.includes('Email not confirmed')) {
           console.log("Email not confirmed, proceeding with login anyway");
           
-          // Get user by email from the auth system
+          // Get user by email from the auth system - using proper typings
           const { data: userData } = await supabase.auth.signInWithPassword({
             email: email,
             password: password,
-            options: {
-              // Setting this to true will force login even if email isn't verified
-              // This is a workaround for development purposes
-              data: { email_confirmed: true }
-            }
           });
           
           if (!userData.user) {

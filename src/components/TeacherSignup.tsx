@@ -71,10 +71,11 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
         email: data.email,
         password: data.password,
         options: {
+          emailRedirectTo: window.location.origin + '/login',
           data: {
             full_name: data.fullName,
-          },
-          emailRedirectTo: window.location.origin + '/login'
+            user_role: 'teacher'
+          }
         }
       });
       
@@ -244,9 +245,23 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Subject</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter your subject" {...field} />
-                  </FormControl>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select subject" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Computer Programming">Computer Programming</SelectItem>
+                      <SelectItem value="DBMS">DBMS</SelectItem>
+                      <SelectItem value="OS">OS</SelectItem>
+                      <SelectItem value="MATHS">MATHS</SelectItem>
+                      <SelectItem value="TCS">TCS</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
