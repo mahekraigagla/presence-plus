@@ -1,8 +1,8 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -22,6 +22,7 @@ const teacherSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters' }),
   department: z.string().min(1, { message: 'Department is required' }),
+  subject: z.string().min(1, { message: 'Subject is required' }),
 });
 
 const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) => {
@@ -36,6 +37,7 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
       email: '',
       password: '',
       department: '',
+      subject: '',
     },
   });
 
@@ -64,14 +66,15 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
         return;
       }
       
-      // Create Supabase auth user with emailConfirm disabled
+      // Create Supabase auth user with email confirmation disabled
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
           data: {
             full_name: data.fullName,
-          }
+          },
+          emailRedirectTo: window.location.origin + '/login'
         }
       });
       
@@ -100,7 +103,8 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
           user_id: authData.user.id,
           full_name: data.fullName,
           email: data.email,
-          department: data.department
+          department: data.department,
+          subject: data.subject
         });
       
       if (teacherError) {
@@ -123,6 +127,7 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
       toast({
         title: "Account Created",
         description: "Your teacher account has been created successfully. You can now log in.",
+        variant: "default"
       });
       
       // Sign out the user since we want them to explicitly log in
@@ -228,6 +233,20 @@ const TeacherSignup: React.FC<TeacherSignupProps> = ({ onComplete, onCancel }) =
                       <SelectItem value="Civil Engineering">Civil Engineering</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="subject"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Subject</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter your subject" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

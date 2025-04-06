@@ -1,8 +1,8 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -68,14 +68,15 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
         return;
       }
       
-      // Create Supabase auth user
+      // Create Supabase auth user with email confirmation disabled
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
           data: {
             full_name: data.fullName
-          }
+          },
+          emailRedirectTo: window.location.origin + '/login'
         }
       });
       
@@ -130,6 +131,7 @@ const StudentSignup: React.FC<StudentSignupProps> = ({ onComplete, onCancel }) =
       toast({
         title: "Account Created",
         description: "Your account has been created successfully. You can now log in.",
+        variant: "default"
       });
       
       // Sign out the user since we want them to explicitly log in

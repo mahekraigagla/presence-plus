@@ -24,7 +24,7 @@ const SignUp = () => {
     toast({
       title: 'Registration Complete',
       description: 'Your account has been created. Please log in to continue.',
-      variant: 'success'
+      variant: 'default'
     });
     
     // Redirect to login page after signup
